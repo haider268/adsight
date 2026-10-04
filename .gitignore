@@ -12,7 +12,7 @@ coverage.xml
 htmlcov/
 .env
 local/
-data/
+/data/
 *.duckdb
 *.duckdb.wal
 .adsight/

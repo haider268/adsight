@@ -7,9 +7,11 @@ import pytest
 
 from adsight.log import (
     JsonFormatter,
+    adsight_handlers,
     configure_logging,
     get_logger,
     get_run_id,
+    reset_logging,
     set_run_id,
 )
 
@@ -19,10 +21,7 @@ def _reset() -> Iterator[None]:
     set_run_id(None)
     yield
     set_run_id(None)
-    logger = logging.getLogger("adsight")
-    for handler in list(logger.handlers):
-        logger.removeHandler(handler)
-        handler.close()
+    reset_logging()
 
 
 def _record(msg: str, **extra: object) -> logging.LogRecord:
@@ -72,10 +71,12 @@ def test_non_serialisable_value_is_stringified() -> None:
 def test_configure_twice_gives_one_stderr_handler() -> None:
     configure_logging()
     configure_logging()
-    handlers = logging.getLogger("adsight").handlers
+    handlers = adsight_handlers()
     streams = [h for h in handlers if type(h) is logging.StreamHandler]
     assert len(streams) == 1
     assert len(handlers) == 1
+    reset_logging()
+    assert adsight_handlers() == []
 
 
 def test_stderr_output_is_json(capsys: pytest.CaptureFixture[str]) -> None:

@@ -48,10 +48,7 @@ def configure_logging(level: str = "INFO", path: Path | None = None) -> None:
     Safe to call repeatedly: handlers from earlier calls are replaced, not duplicated.
     """
     logger = logging.getLogger(_ROOT)
-    for handler in list(logger.handlers):
-        if getattr(handler, _HANDLER_TAG, False):
-            logger.removeHandler(handler)
-            handler.close()
+    reset_logging()
 
     formatter = JsonFormatter()
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stderr)]
@@ -65,6 +62,19 @@ def configure_logging(level: str = "INFO", path: Path | None = None) -> None:
 
     logger.setLevel(level.upper())
     logger.propagate = False
+
+
+def adsight_handlers() -> list[logging.Handler]:
+    """The handlers configure_logging installed; other handlers (e.g. pytest's) are ignored."""
+    return [h for h in logging.getLogger(_ROOT).handlers if getattr(h, _HANDLER_TAG, False)]
+
+
+def reset_logging() -> None:
+    """Remove and close the handlers configure_logging installed."""
+    logger = logging.getLogger(_ROOT)
+    for handler in adsight_handlers():
+        logger.removeHandler(handler)
+        handler.close()
 
 
 def get_logger(name: str) -> logging.Logger:
