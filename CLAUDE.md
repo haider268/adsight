@@ -11,6 +11,8 @@ synthetic ad dataset. Status: synthetic dataset built; no agent or benchmark yet
 uv sync                       # create .venv and install everything
 uv run adsight version        # prints "adsight 0.1.0"
 uv run adsight data           # build data/adsight.duckdb + data/manifest.json
+uv run adsight bench refs     # check stored expected answers against reference SQL
+uv run adsight bench refs --write   # (re)compute and store them
 uv run pytest                 # offline test suite with coverage
 uv run ruff check             # lint
 uv run ruff format --check    # formatting
@@ -32,6 +34,12 @@ uv run mypy src               # strict type check
 | `src/adsight/data/incidents.py` | The five `INCIDENTS`, `incident_events()`, and hidden-effect helpers: `winner_multiplier`, `extra_frequency`, `lead_multiplier`. |
 | `src/adsight/data/generator.py` | `generate(seed, events, incidents)` -> `Dataset`: one metrics row per active ad per day; `clip`, `poisson`, `cpm_base`. |
 | `src/adsight/data/manifest.py` | `measure()` each incident from the metrics, `build_manifest()`, `write_manifest()`. |
+| `src/adsight/benchmark/answer.py` | `AgentAnswer` and `NamedValue`: the contract every architecture returns. |
+| `src/adsight/benchmark/questions.py` | `Question`, the seven `Scoring` types, `Expected`, `load_questions`/`save_questions`, benchmark constants. |
+| `src/adsight/benchmark/refs.py` | `expected_from_rows` and `compute_expected`: reference SQL result -> `Expected`. |
+| `src/adsight/benchmark/score.py` | `matches`, rule-based `score`, and `reference_answer` (the perfect answer). |
+| `benchmark/questions.jsonl` | The questions, one JSON object per line. |
+| `benchmark/reference_sql/` | One `<ID>.sql` per question that has a numeric, entity, numeric_set or trend answer. |
 | `src/adsight/data/build.py` | `build_database(dataset, path)` (fresh file, CSV + `COPY` load) and `open_readonly(path)`. |
 
 ## Data contract
@@ -59,6 +67,23 @@ uv run mypy src               # strict type check
 Hidden incidents (I3, I5) have no events_log row on purpose: a correct diagnosis must
 come from the metrics, and inventing a change event is a failure. Each incident's effect
 is measured from the generated data into `manifest.json`, never asserted by hand.
+
+## Benchmark contract
+
+- Defined on seed 7. `BENCHMARK_TODAY` is 2026-06-30; data covers 2026-01-01 to 2026-06-29.
+- `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`
+  (label + value), `entities` (best first), `direction` (up / down / flat), `assumptions`,
+  `sql` (informational only).
+- Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0005); a
+  ratio may also be given as a percent.
+- numeric / numeric_set: kind answer, every expected value matched by some answer value.
+- entity: kind answer, first entity equals the expected id or name (case-insensitive).
+- trend: kind answer, direction right, and both first and last values matched.
+- root_cause: kind answer, every required regex matches the summary, no forbidden one does.
+- clarify: kind clarify, or kind answer with at least one stated assumption.
+- refuse: kind cannot_answer with no values.
+- Expected values come only from reference SQL via `adsight bench refs --write`; never
+  type them by hand.
 
 ## Rules
 
