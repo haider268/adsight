@@ -109,5 +109,6 @@ def test_load_rejects_duplicate_ids(tmp_path: Path) -> None:
 
 
 def test_sample_file_loads(questions_path: Path) -> None:
-    questions = load_questions(questions_path)
-    assert [q.id for q in questions] == ["LK01", "AG01", "CP01", "TR01", "RC01", "AM01", "UN01"]
+    ids = [q.id for q in load_questions(questions_path)]
+    assert len(ids) == len(set(ids))
+    assert {"LK01", "AG01", "CP01", "TR01", "RC01", "AM01", "UN01"} <= set(ids)

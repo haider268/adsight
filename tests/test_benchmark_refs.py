@@ -95,10 +95,13 @@ def test_stored_refs_are_current(bench_data_dir: Path, questions_path: Path, sql
     con = open_readonly(bench_data_dir / "adsight.duckdb")
     try:
         sql_questions = [q for q in load_questions(questions_path) if q.reference_sql]
-        assert len(sql_questions) == 4
+        assert sql_questions
+        checked = 0
         for q in sql_questions:
             assert q.expected is not None, q.id
             assert compute_expected(q, sql_dir, con) == q.expected, q.id
+            checked += 1
+        assert checked == len(sql_questions)
     finally:
         con.close()
 

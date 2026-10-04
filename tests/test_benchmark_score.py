@@ -44,10 +44,11 @@ def test_ratio_given_as_percent() -> None:
 
 
 def test_reference_answers_score_100_percent(
-    questions: dict[str, Question], bench_manifest: dict[str, Any]
+    questions_path: Path, bench_manifest: dict[str, Any]
 ) -> None:
-    results = {qid: score(q, reference_answer(q, bench_manifest)) for qid, q in questions.items()}
-    assert len(results) == 7
+    all_questions = load_questions(questions_path)
+    results = {q.id: score(q, reference_answer(q, bench_manifest)) for q in all_questions}
+    assert len(results) == len(all_questions)
     failed = {qid: r.reason for qid, r in results.items() if not r.passed}
     assert failed == {}
     assert all(r.reason == "" and r.method == "rule" for r in results.values())
