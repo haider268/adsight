@@ -14,6 +14,8 @@ from adsight.log import configure_logging, get_logger
 app = typer.Typer(no_args_is_help=True, help="adsight: text-to-SQL marketing analytics agent.")
 bench_app = typer.Typer(no_args_is_help=True, help="Benchmark tools.")
 app.add_typer(bench_app, name="bench")
+semantic_app = typer.Typer(no_args_is_help=True, help="Semantic layer tools.")
+app.add_typer(semantic_app, name="semantic")
 console = Console()
 err_console = Console(stderr=True)
 
@@ -26,6 +28,11 @@ def _root() -> None:
 @bench_app.callback()
 def _bench() -> None:
     """Benchmark tools: reference answers and scoring."""
+
+
+@semantic_app.callback()
+def _semantic() -> None:
+    """Semantic layer tools: check a mapping against a database."""
 
 
 @app.command()
@@ -167,6 +174,124 @@ def refs(
     console.print(table)
     if failures:
         raise typer.Exit(1)
+
+
+DbOption = Annotated[
+    Path | None,
+    typer.Option("--db", help="DuckDB file. Default: <data dir>/adsight.duckdb."),
+]
+
+
+def _db_path(db: Path | None) -> Path:
+    return db if db is not None else get_settings().db_path
+
+
+@app.command()
+def load(
+    csv_files: Annotated[list[Path], typer.Argument(help="CSV files; each becomes a table.")],
+    db: DbOption = None,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite an existing database.")] = False,
+) -> None:
+    """Load CSV files into a new DuckDB database, one table per file (named after the stem)."""
+    import duckdb
+
+    path = _db_path(db)
+    if path.exists() and not force:
+        err_console.print(f"{path} already exists; pass --force to overwrite it")
+        raise typer.Exit(1)
+    for csv in csv_files:
+        if not csv.is_file():
+            err_console.print(f"CSV file not found: {csv}")
+            raise typer.Exit(1)
+    path.unlink(missing_ok=True)
+    path.with_name(path.name + ".wal").unlink(missing_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(path))
+    try:
+        table = Table(title=f"loaded into {path}")
+        table.add_column("table")
+        table.add_column("rows", justify="right")
+        for csv in csv_files:
+            name = csv.stem
+            source = csv.resolve().as_posix().replace("'", "''")
+            con.execute(f"CREATE TABLE \"{name}\" AS SELECT * FROM read_csv_auto('{source}')")
+            row = con.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()
+            table.add_row(name, str(row[0] if row else 0))
+    finally:
+        con.close()
+    console.print(table)
+
+
+@app.command()
+def inspect(
+    out: Annotated[Path, typer.Option("--out", help="Where to write the drafted YAML.")],
+    db: DbOption = None,
+    name: Annotated[str, typer.Option("--name", help="Model name.")] = "draft",
+) -> None:
+    """Draft a semantic model (YAML) for a database and explain each decision."""
+    from adsight.data.build import open_readonly
+    from adsight.semantic.inspect import InspectError, draft_model
+    from adsight.semantic.model import dump_model
+
+    path = _db_path(db)
+    if not path.is_file():
+        err_console.print(f"database not found at {path}")
+        raise typer.Exit(1)
+    con = open_readonly(path)
+    try:
+        model, notes = draft_model(con, name)
+    except InspectError as exc:
+        err_console.print(f"cannot draft a model: {exc}")
+        raise typer.Exit(1) from exc
+    finally:
+        con.close()
+    dump_model(model, out)
+
+    roles = Table(title=f"{model.name}: role -> column")
+    roles.add_column("role")
+    roles.add_column("column")
+    roles.add_row("fact table", model.fact.table)
+    roles.add_row("date", f"{model.fact.date} (grain {model.grain})")
+    for measure, column in model.fact.measures.items():
+        roles.add_row(f"measure {measure}", column)
+    for lv in model.levels:
+        detail = f"{lv.table}.{lv.key}" + (f", label {lv.label}" if lv.label else "")
+        detail += f", parent_key {lv.parent_key}" if lv.parent_key else ""
+        roles.add_row(f"level {lv.name}", detail)
+    for attr in model.attributes:
+        roles.add_row(f"attribute {attr.name}", f"{attr.table}.{attr.column}")
+    roles.add_row("change log", model.change_log.table if model.change_log else "none")
+    console.print(roles)
+    for note in notes:
+        console.print(f"- {note}")
+    console.print(f"wrote {out}")
+
+
+@semantic_app.command("check")
+def semantic_check(
+    model_path: Annotated[Path, typer.Argument(help="Semantic model YAML.")],
+    db: DbOption = None,
+) -> None:
+    """Check a semantic model YAML against a database."""
+    from adsight.data.build import open_readonly
+    from adsight.semantic.check import check_model
+    from adsight.semantic.model import load_model
+
+    path = _db_path(db)
+    if not path.is_file():
+        err_console.print(f"database not found at {path}")
+        raise typer.Exit(1)
+    model = load_model(model_path)
+    con = open_readonly(path)
+    try:
+        problems = check_model(model, con)
+    finally:
+        con.close()
+    if problems:
+        for problem in problems:
+            console.print(f"PROBLEM: {problem}")
+        raise typer.Exit(1)
+    console.print(f"OK: {model_path} matches {path}")
 
 
 def main() -> None:

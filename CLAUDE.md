@@ -13,6 +13,7 @@ uv run adsight version        # prints "adsight 0.1.0"
 uv run adsight data           # build data/adsight.duckdb + data/manifest.json
 uv run adsight bench refs     # check stored expected answers against reference SQL
 uv run adsight bench refs --write   # (re)compute and store them
+uv run adsight semantic check semantic/demo.yaml   # mapping fits the database
 uv run pytest                 # offline test suite with coverage
 uv run ruff check             # lint
 uv run ruff format --check    # formatting
@@ -40,6 +41,12 @@ uv run mypy src               # strict type check
 | `src/adsight/benchmark/score.py` | `matches`, rule-based `score`, and `reference_answer` (the perfect answer). |
 | `benchmark/questions.jsonl` | The questions, one JSON object per line. |
 | `benchmark/reference_sql/` | One `<ID>.sql` per question that has a numeric, entity, numeric_set or trend answer. |
+| `src/adsight/semantic/model.py` | `SemanticModel` (fact, measures, levels, attributes, change log); `load_model`/`dump_model`. |
+| `src/adsight/semantic/sql.py` | `from_clause` (fact `f` + LEFT JOINs up the hierarchy), `level_key`, `level_label`, `attribute_col`, `date_col`. |
+| `src/adsight/semantic/metrics.py` | The metric library: `METRICS`, `available_metrics`, `sql_expr`. |
+| `src/adsight/semantic/inspect.py` | `draft_model`: propose a mapping for an unknown database, with notes. |
+| `src/adsight/semantic/check.py` | `check_model`: tables, columns, types, orphan keys and date spacing. |
+| `semantic/demo.yaml` | The mapping for the demo database, drafted by `adsight inspect`. |
 | `src/adsight/data/build.py` | `build_database(dataset, path)` (fresh file, CSV + `COPY` load) and `open_readonly(path)`. |
 
 ## Data contract
@@ -90,6 +97,23 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 - refuse: kind cannot_answer with no values.
 - Expected values come only from reference SQL via `adsight bench refs --write`; never
   type them by hand.
+
+## Semantic layer
+
+- A YAML mapping says what each column of ANY ad dataset means: the fact table and its
+  date column and grain (day or week), the canonical measures, the entity levels top to
+  bottom (each with its table, key, label and parent_key), group-by attributes, and an
+  optional change log. A level whose table is the fact table is flat data, with no join.
+- Canonical measures: spend, impressions and conversions are required; clicks,
+  link_clicks and reach are optional. Reach is never summed on its own.
+- Metrics: spend, impressions, clicks, link_clicks, conversions, cpl, ctr, cpc, cpm,
+  cvr (over link clicks, or over clicks when link clicks are unmapped) and frequency.
+  A metric is available only when every measure it needs is mapped.
+- Commands: `adsight load <csv...> --db <path>` (one table per file; `--force` to
+  overwrite), `adsight inspect --db <path> --out <yaml> [--name]` (draft + notes),
+  `adsight semantic check <yaml> --db <path>` (exit 1 lists the problems).
+- Metrics are defined once here; templates, reference SQL and agents read them, never raw
+  column names.
 
 ## Rules
 

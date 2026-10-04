@@ -1,0 +1,65 @@
+version: 1
+name: adsight-demo
+currency: USD
+conversion_name: lead
+grain: day
+fact:
+  table: daily_ad_metrics
+  date: date
+  measures:
+    spend: spend
+    impressions: impressions
+    clicks: clicks
+    link_clicks: link_clicks
+    reach: reach
+    conversions: leads
+levels:
+- name: account
+  table: accounts
+  key: account_id
+  label: name
+- name: campaign
+  table: campaigns
+  key: campaign_id
+  label: name
+  parent_key: account_id
+- name: ad_set
+  table: ad_sets
+  key: ad_set_id
+  label: name
+  parent_key: campaign_id
+- name: ad
+  table: ads
+  key: ad_id
+  label: name
+  parent_key: ad_set_id
+attributes:
+- name: vertical
+  table: accounts
+  column: vertical
+- name: objective
+  table: campaigns
+  column: objective
+- name: audience
+  table: ad_sets
+  column: audience
+- name: placement
+  table: ad_sets
+  column: placement
+- name: creative_type
+  table: ads
+  column: creative_type
+- name: headline
+  table: ads
+  column: headline
+- name: status
+  table: ads
+  column: status
+change_log:
+  table: events_log
+  date: date
+  entity_type: entity_type
+  entity_id: entity_id
+  change_type: change_type
+  old_value: old_value
+  new_value: new_value
