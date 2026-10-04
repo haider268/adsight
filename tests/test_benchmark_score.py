@@ -131,3 +131,66 @@ def test_sql_question_without_expected_raises(questions: dict[str, Question]) ->
     bare = questions["LK01"].model_copy(update={"expected": None})
     with pytest.raises(ValueError, match="no expected answer"):
         score(bare, _answer())
+
+
+# --- one-to-one matching and the ratio floor --------------------------------
+
+
+def _numeric_question(qid: str, unit: str, values: dict[str, float]) -> Question:
+    category, scoring_type = (
+        ("comparison", "numeric_set")
+        if qid.startswith("CP")
+        else (
+            "lookup",
+            "numeric",
+        )
+    )
+    return Question.model_validate(
+        {
+            "id": qid,
+            "category": category,
+            "question": "q",
+            "scoring": {"type": scoring_type, "unit": unit},
+            "reference_sql": f"{qid}.sql",
+            "expected": {"values": values},
+        }
+    )
+
+
+def _values(*numbers: float) -> list[NamedValue]:
+    return [NamedValue(label=f"v{i}", value=n) for i, n in enumerate(numbers)]
+
+
+def test_one_answer_value_satisfies_only_one_expected() -> None:
+    q = _numeric_question("CP98", "usd", {"a": 100.0, "b": 100.5})
+    result = score(q, _answer(values=_values(100.2)))
+    assert not result.passed
+    assert "unmatched expected values" in result.reason
+    assert score(q, _answer(values=_values(100.2, 100.4))).passed
+
+
+def test_matching_finds_assignment_greedy_would_miss() -> None:
+    q = _numeric_question("CP97", "number", {"b": 101.5, "a": 100.0})
+    assert score(q, _answer(values=_values(100.8, 102.4))).passed
+
+
+def test_trend_endpoints_need_two_values() -> None:
+    q = Question.model_validate(
+        {
+            "id": "TR98",
+            "category": "trend",
+            "question": "q",
+            "scoring": {"type": "trend", "unit": "usd"},
+            "reference_sql": "TR98.sql",
+            "expected": {"values": {"first": 10.0, "last": 10.0}, "direction": "flat"},
+        }
+    )
+    one = score(q, _answer(direction="flat", values=_values(10.0)))
+    assert not one.passed
+    assert "unmatched expected values" in one.reason
+    assert score(q, _answer(direction="flat", values=_values(10.0, 10.0))).passed
+
+
+def test_ratio_floor_is_tighter() -> None:
+    assert not matches(0.0184, 0.0181, "ratio")
+    assert matches(0.0184, 0.01845, "ratio")

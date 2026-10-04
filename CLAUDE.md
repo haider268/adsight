@@ -74,9 +74,10 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 - `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`
   (label + value), `entities` (best first), `direction` (up / down / flat), `assumptions`,
   `sql` (informational only).
-- Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0005); a
-  ratio may also be given as a percent.
-- numeric / numeric_set: kind answer, every expected value matched by some answer value.
+- Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0001); a
+  ratio may also be given as a percent. Matching is one-to-one: each answer value can
+  satisfy only one expected value (maximum bipartite matching).
+- numeric / numeric_set: kind answer, every expected value matched by an answer value.
 - entity: kind answer, first entity equals the expected id or name (case-insensitive).
 - trend: kind answer, direction right, and both first and last values matched.
 - root_cause: kind answer, every required regex matches the summary, no forbidden one does.

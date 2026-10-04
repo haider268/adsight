@@ -19,7 +19,7 @@ from adsight.benchmark.questions import (
     Unit,
 )
 
-FLOOR: dict[str, float] = {"usd": 0.01, "count": 0.5, "number": 0.01, "ratio": 0.0005}
+FLOOR: dict[str, float] = {"usd": 0.01, "count": 0.5, "number": 0.01, "ratio": 0.0001}
 
 CLARIFY_SUMMARY = "Which account, metric and date range do you mean?"
 
@@ -48,11 +48,39 @@ def _fail(reason: str) -> ScoreResult:
 
 
 def _unmatched(expected: dict[str, float], answer: AgentAnswer, unit: Unit) -> list[str]:
-    return [
-        label
-        for label, value in expected.items()
-        if not any(matches(value, v.value, unit) for v in answer.values)
+    """Expected labels left over after a maximum one-to-one matching to answer values.
+
+    Each answer value may satisfy at most one expected value. Augmenting paths (Kuhn's
+    algorithm) find the largest such matching, so a lucky order cannot hide a miss and
+    an unlucky order cannot cause one.
+    """
+    labels = list(expected)
+    got = [v.value for v in answer.values]
+    candidates = [
+        [j for j, value in enumerate(got) if matches(expected[label], value, unit)]
+        for label in labels
     ]
+    owner: list[int | None] = [None] * len(got)  # answer index -> expected index
+
+    def assign(i: int, visited: set[int]) -> bool:
+        for j in candidates[i]:
+            if j in visited:
+                continue
+            visited.add(j)
+            current = owner[j]
+            if current is None or assign(current, visited):
+                owner[j] = i
+                return True
+        return False
+
+    for i in range(len(labels)):
+        assign(i, set())
+    matched = {i for i in owner if i is not None}
+    return [label for i, label in enumerate(labels) if i not in matched]
+
+
+def _missing_reason(missing: list[str]) -> str:
+    return f"unmatched expected values: {', '.join(missing)} (each answer value counts once)"
 
 
 def _expected(question: Question) -> Expected:
@@ -70,7 +98,7 @@ def score(question: Question, answer: AgentAnswer) -> ScoreResult:
             return _fail(f"kind is {answer.kind!r}, expected 'answer'")
         missing = _unmatched(expected.values, answer, scoring.unit)
         if missing:
-            return _fail(f"no answer value matches expected {', '.join(missing)}")
+            return _fail(_missing_reason(missing))
         return _pass()
 
     if isinstance(scoring, EntityScoring):
@@ -94,7 +122,7 @@ def score(question: Question, answer: AgentAnswer) -> ScoreResult:
         endpoints = {k: expected.values[k] for k in ("first", "last")}
         missing = _unmatched(endpoints, answer, scoring.unit)
         if missing:
-            return _fail(f"no answer value matches expected {', '.join(missing)}")
+            return _fail(_missing_reason(missing))
         return _pass()
 
     if isinstance(scoring, RootCauseScoring):
