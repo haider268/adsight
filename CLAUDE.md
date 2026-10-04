@@ -80,7 +80,10 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 - numeric / numeric_set: kind answer, every expected value matched by an answer value.
 - entity: kind answer, first entity equals the expected id or name (case-insensitive).
 - trend: kind answer, direction right, and both first and last values matched.
-- root_cause: kind answer, every required regex matches the summary, no forbidden one does.
+- root_cause: kind answer and every required regex matches the summary. Ground truth is
+  `incident_ids` (reference = their manifest causes joined) or a `reference_summary` for
+  no-incident questions. Regexes cannot tell "it was X" from "it was not X", so invented
+  causes are judged later by an LLM, not by regex.
 - clarify: kind clarify, or kind answer with at least one stated assumption.
 - refuse: kind cannot_answer with no values.
 - Expected values come only from reference SQL via `adsight bench refs --write`; never

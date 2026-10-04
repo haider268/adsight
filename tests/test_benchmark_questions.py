@@ -57,10 +57,23 @@ def test_valid_question() -> None:
             {
                 "id": "RC99",
                 "category": "root_cause",
-                "scoring": {"type": "root_cause", "incident_id": "I1", "required": ["(unclosed"]},
+                "scoring": {
+                    "type": "root_cause",
+                    "incident_ids": ["I1"],
+                    "required": ["(unclosed"],
+                },
                 "reference_sql": None,
             },
             "invalid regex",
+        ),
+        (
+            {
+                "id": "RC99",
+                "category": "root_cause",
+                "scoring": {"type": "root_cause", "incident_ids": [], "required": ["x"]},
+                "reference_sql": None,
+            },
+            "needs incident_ids or a reference_summary",
         ),
     ],
 )
@@ -79,7 +92,7 @@ def test_save_load_round_trip(tmp_path: Path) -> None:
                 "question": "Why?",
                 "scoring": {
                     "type": "root_cause",
-                    "incident_id": "I1",
+                    "incident_ids": ["I1"],
                     "required": ["AD019|Women 30-55 Broad \\| Video"],
                 },
             }

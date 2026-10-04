@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from adsight.benchmark.answer import AgentAnswer, NamedValue
-from adsight.benchmark.questions import Question, load_questions
+from adsight.benchmark.questions import Question, RootCauseScoring, load_questions
 from adsight.benchmark.score import matches, reference_answer, score
 
 
@@ -194,3 +194,76 @@ def test_trend_endpoints_need_two_values() -> None:
 def test_ratio_floor_is_tighter() -> None:
     assert not matches(0.0184, 0.0181, "ratio")
     assert matches(0.0184, 0.01845, "ratio")
+
+
+# --- root cause: multi-incident and no-incident ground truth ----------------
+
+
+def _root_cause_questions(questions_path: Path) -> list[Question]:
+    return [q for q in load_questions(questions_path) if q.category == "root_cause"]
+
+
+def _causes(manifest: dict[str, Any]) -> dict[str, str]:
+    return {i["incident_id"]: i["cause"] for i in manifest["incidents"]}
+
+
+def test_other_incident_causes_fail_every_root_cause_question(
+    questions_path: Path, bench_manifest: dict[str, Any]
+) -> None:
+    causes = _causes(bench_manifest)
+    checked = 0
+    for q in _root_cause_questions(questions_path):
+        assert isinstance(q.scoring, RootCauseScoring)
+        if not q.scoring.incident_ids:
+            continue
+        for incident_id, cause in causes.items():
+            if incident_id in q.scoring.incident_ids:
+                continue
+            result = score(q, _answer(summary=cause))
+            assert not result.passed, (q.id, incident_id)
+            checked += 1
+    assert checked > 0
+
+
+def test_incident_causes_fail_reference_summary_questions(
+    questions_path: Path, bench_manifest: dict[str, Any]
+) -> None:
+    causes = _causes(bench_manifest)
+    for q in _root_cause_questions(questions_path):
+        assert isinstance(q.scoring, RootCauseScoring)
+        if q.scoring.reference_summary is None:
+            continue
+        for incident_id, cause in causes.items():
+            assert not score(q, _answer(summary=cause)).passed, (q.id, incident_id)
+
+
+def _root_cause(scoring: dict[str, Any]) -> Question:
+    return Question.model_validate(
+        {
+            "id": "RC99",
+            "category": "root_cause",
+            "question": "Why?",
+            "scoring": {"type": "root_cause", **scoring},
+        }
+    )
+
+
+def test_reference_answer_joins_causes_in_list_order(bench_manifest: dict[str, Any]) -> None:
+    causes = _causes(bench_manifest)
+    q = _root_cause({"incident_ids": ["I4", "I1"], "required": ["x"]})
+    assert reference_answer(q, bench_manifest).summary == f"{causes['I4']} {causes['I1']}"
+
+
+def test_reference_answer_prefers_reference_summary(bench_manifest: dict[str, Any]) -> None:
+    q = _root_cause(
+        {"incident_ids": [], "reference_summary": "Nothing changed.", "required": ["x"]}
+    )
+    answer = reference_answer(q, bench_manifest)
+    assert answer.kind == "answer"
+    assert answer.summary == "Nothing changed."
+
+
+def test_reference_answer_unknown_incident_raises(bench_manifest: dict[str, Any]) -> None:
+    q = _root_cause({"incident_ids": ["I9"], "required": ["x"]})
+    with pytest.raises(ValueError, match="I9"):
+        reference_answer(q, bench_manifest)

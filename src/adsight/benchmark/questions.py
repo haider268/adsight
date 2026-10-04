@@ -71,9 +71,16 @@ class TrendScoring(_Frozen):
 
 class RootCauseScoring(_Frozen):
     type: Literal["root_cause"] = "root_cause"
-    incident_id: str
+    incident_ids: list[str]  # injected incidents behind the answer; empty for no-incident cases
+    reference_summary: str | None = None  # the perfect answer when no incident explains it
     required: list[str]  # case-insensitive regexes that must match the summary
     forbidden: list[str] = []  # case-insensitive regexes that must not match it
+
+    @model_validator(mode="after")
+    def _has_ground_truth(self) -> "RootCauseScoring":
+        if not self.incident_ids and self.reference_summary is None:
+            raise ValueError("root_cause scoring needs incident_ids or a reference_summary")
+        return self
 
     @field_validator("required", "forbidden")
     @classmethod

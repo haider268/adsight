@@ -182,8 +182,14 @@ def reference_answer(question: Question, manifest: dict[str, Any]) -> AgentAnswe
             values=[NamedValue(label=k, value=expected.values[k]) for k in ("first", "last")],
         )
     if isinstance(scoring, RootCauseScoring):
-        incident = next(i for i in manifest["incidents"] if i["incident_id"] == scoring.incident_id)
-        return AgentAnswer(kind="answer", summary=str(incident["cause"]))
+        if scoring.reference_summary is not None:
+            return AgentAnswer(kind="answer", summary=scoring.reference_summary)
+        causes = {str(i["incident_id"]): str(i["cause"]) for i in manifest["incidents"]}
+        unknown = [iid for iid in scoring.incident_ids if iid not in causes]
+        if unknown:
+            raise ValueError(f"{question.id}: incidents not in the manifest: {unknown}")
+        summary = " ".join(causes[iid] for iid in scoring.incident_ids)
+        return AgentAnswer(kind="answer", summary=summary)
     if isinstance(scoring, ClarifyScoring):
         return AgentAnswer(kind="clarify", summary=CLARIFY_SUMMARY)
     if isinstance(scoring, RefuseScoring):
