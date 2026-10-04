@@ -1,3 +1,4 @@
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -125,3 +126,17 @@ def test_sample_file_loads(questions_path: Path) -> None:
     ids = [q.id for q in load_questions(questions_path)]
     assert len(ids) == len(set(ids))
     assert {"LK01", "AG01", "CP01", "TR01", "RC01", "AM01", "UN01"} <= set(ids)
+
+
+def test_final_benchmark_shape(questions_path: Path) -> None:
+    questions = load_questions(questions_path)
+    assert len(questions) == 100
+    assert Counter(q.category for q in questions) == {
+        "lookup": 15,
+        "aggregation": 15,
+        "comparison": 15,
+        "trend": 15,
+        "root_cause": 20,
+        "ambiguous": 10,
+        "unanswerable": 10,
+    }

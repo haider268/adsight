@@ -267,3 +267,15 @@ def test_reference_answer_unknown_incident_raises(bench_manifest: dict[str, Any]
     q = _root_cause({"incident_ids": ["I9"], "required": ["x"]})
     with pytest.raises(ValueError, match="I9"):
         reference_answer(q, bench_manifest)
+
+
+def test_rc20_needs_both_incidents(
+    questions: dict[str, Question], bench_manifest: dict[str, Any]
+) -> None:
+    causes = _causes(bench_manifest)
+    rc20 = questions["RC20"]
+    assert not score(rc20, _answer(summary=causes["I1"])).passed
+    assert not score(rc20, _answer(summary=causes["I4"])).passed
+    joined = reference_answer(rc20, bench_manifest)
+    assert joined.summary == f"{causes['I1']} {causes['I4']}"
+    assert score(rc20, joined).passed

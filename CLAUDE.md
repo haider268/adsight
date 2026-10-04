@@ -71,6 +71,8 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 ## Benchmark contract
 
 - Defined on seed 7. `BENCHMARK_TODAY` is 2026-06-30; data covers 2026-01-01 to 2026-06-29.
+- 100 questions: lookup 15, aggregation 15, comparison 15, trend 15, root_cause 20,
+  ambiguous 10, unanswerable 10. The 60 SQL-scored questions have reference SQL.
 - `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`
   (label + value), `entities` (best first), `direction` (up / down / flat), `assumptions`,
   `sql` (informational only).
