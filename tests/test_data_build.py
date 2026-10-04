@@ -12,8 +12,8 @@ EXPECTED = {
     "campaigns": 9,
     "ad_sets": 18,
     "ads": 54,
-    "daily_ad_metrics": 8640,
-    "events_log": 15,
+    "daily_ad_metrics": 8534,
+    "events_log": 18,
 }
 
 
@@ -55,6 +55,19 @@ def test_event_ids_and_end_budget(built: Path) -> None:
         budget = con.execute("SELECT daily_budget FROM ad_sets WHERE ad_set_id = 'S02'").fetchone()
     finally:
         con.close()
-    assert ids == list(range(1, 16))
+    assert ids == list(range(1, 19))
     assert budget is not None
     assert budget[0] == Decimal("44.00")
+
+
+def test_ads_status_column(built: Path) -> None:
+    con = open_readonly(built)
+    try:
+        rows = con.execute(
+            "SELECT ad_id, status FROM ads WHERE status <> 'active' ORDER BY 1"
+        ).fetchall()
+        audience = con.execute("SELECT audience FROM ad_sets WHERE ad_set_id = 'S09'").fetchone()
+    finally:
+        con.close()
+    assert rows == [("AD019", "paused")]
+    assert audience == ("lookalike_3pct",)

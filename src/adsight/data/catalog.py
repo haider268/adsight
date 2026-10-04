@@ -139,6 +139,24 @@ LEARNING_DAYS = 7
 DIMINISHING_EXPONENT = 0.3
 LEARNING_RESET_BUDGET_CHANGE = 0.20
 
+
+@dataclass(frozen=True)
+class LearningProfile:
+    """How an ad behaves while learning: CVR ramps from `floor` to 1 over LEARNING_DAYS."""
+
+    floor: float
+    noise_sd: float
+    cpm_multiplier: float
+
+
+# Keyed by what started the learning phase. An audience edit restarts learning harder
+# than a launch or a budget change.
+LEARNING_PROFILES: dict[str, LearningProfile] = {
+    "launch": LearningProfile(0.7, 0.35, 1.0),
+    "budget": LearningProfile(0.7, 0.35, 1.0),
+    "audience": LearningProfile(0.4, 0.50, 1.25),
+}
+
 _AUDIENCE_FREQ_PREFIXES: tuple[tuple[str, float], ...] = (
     ("retargeting_", 3.0),
     ("customer_list", 3.0),

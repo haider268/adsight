@@ -25,14 +25,15 @@ CREATE TABLE ad_sets (
     daily_budget DECIMAL(12,2) NOT NULL
 );
 
--- One row per ad (one creative) inside an ad set.
+-- One row per ad (one creative) inside an ad set; status is "active" or "paused" at window end.
 CREATE TABLE ads (
     ad_id VARCHAR PRIMARY KEY,
     ad_set_id VARCHAR NOT NULL REFERENCES ad_sets,
     name VARCHAR NOT NULL,
     creative_type VARCHAR NOT NULL,
     headline VARCHAR NOT NULL,
-    launched_date DATE NOT NULL
+    launched_date DATE NOT NULL,
+    status VARCHAR NOT NULL
 );
 
 -- One row per ad per delivery day; spend is USD.

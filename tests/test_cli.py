@@ -33,4 +33,7 @@ def test_data_builds_database(tmp_path: Path) -> None:
     result = runner.invoke(app, ["data", "--data-dir", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert (tmp_path / "adsight.duckdb").is_file()
-    assert "8640" in result.output
+    assert (tmp_path / "manifest.json").is_file()
+    assert "8534" in result.output
+    for incident_id in ("I1", "I2", "I3", "I4", "I5"):
+        assert incident_id in result.output

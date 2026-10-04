@@ -61,6 +61,7 @@ def build_database(dataset: Dataset, path: Path) -> dict[str, int]:
                 a.creative_type,
                 a.headline,
                 a.launched_date.isoformat(),
+                a.status,
             )
             for a in dataset.ads
         ],

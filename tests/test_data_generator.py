@@ -1,3 +1,5 @@
+import dataclasses
+import hashlib
 import random
 import statistics
 from collections import defaultdict
@@ -15,6 +17,9 @@ from adsight.data.catalog import (
 )
 from adsight.data.events import ChangeEvent, baseline_events, budget_on
 from adsight.data.generator import Dataset, MetricRow, clip, cpm_base, generate, poisson
+
+# sha256 of the seed-7 metrics as committed in M1a (98940d0), one repr(astuple(row)) per line.
+M1A_METRICS_SHA256 = "c4925bc036d304553cc8f7ab47a416894ec6734e45df36c36fc8c45ef7b622fd"
 
 # --- helpers ---------------------------------------------------------------
 
@@ -55,15 +60,21 @@ def test_doubling_budget_raises_cpm_by_2_pow_0_3() -> None:
 # --- determinism and the RNG rule ------------------------------------------
 
 
-def test_same_seed_same_metrics(dataset7: Dataset) -> None:
-    assert generate(7).metrics == dataset7.metrics
+def test_same_seed_same_metrics(baseline7: Dataset) -> None:
+    assert generate(7, incidents=[]).metrics == baseline7.metrics
 
 
-def test_different_seed_differs(dataset7: Dataset) -> None:
-    assert generate(8).metrics != dataset7.metrics
+def test_baseline_matches_m1a_hash(baseline7: Dataset) -> None:
+    """The clean baseline is byte-for-byte the M1a dataset; incidents must not leak into it."""
+    text = "\n".join(repr(dataclasses.astuple(m)) for m in baseline7.metrics)
+    assert hashlib.sha256(text.encode()).hexdigest() == M1A_METRICS_SHA256
 
 
-def test_extra_event_changes_only_what_it_affects(dataset7: Dataset) -> None:
+def test_different_seed_differs(baseline7: Dataset) -> None:
+    assert generate(8, incidents=[]).metrics != baseline7.metrics
+
+
+def test_extra_event_changes_only_what_it_affects(baseline7: Dataset) -> None:
     change_day = date(2026, 6, 20)
     extra = ChangeEvent(
         date=change_day,
@@ -73,9 +84,9 @@ def test_extra_event_changes_only_what_it_affects(dataset7: Dataset) -> None:
         old_value="70.00",
         new_value="77.00",
     )
-    changed = generate(7, [*baseline_events(), extra])
+    changed = generate(7, [*baseline_events(), extra], incidents=[])
     assert len(changed.events) == 16
-    before = {(m.date, m.ad_id): m for m in dataset7.metrics}
+    before = {(m.date, m.ad_id): m for m in baseline7.metrics}
     after = {(m.date, m.ad_id): m for m in changed.metrics}
     assert before.keys() == after.keys()
 
@@ -95,18 +106,18 @@ def test_extra_event_changes_only_what_it_affects(dataset7: Dataset) -> None:
 # --- shape and integrity ---------------------------------------------------
 
 
-def test_row_count(dataset7: Dataset) -> None:
-    assert len(dataset7.metrics) == 8640
+def test_row_count(baseline7: Dataset) -> None:
+    assert len(baseline7.metrics) == 8640
 
 
-def test_rows_within_ad_lifetime(dataset7: Dataset) -> None:
-    for m in dataset7.metrics:
+def test_rows_within_ad_lifetime(baseline7: Dataset) -> None:
+    for m in baseline7.metrics:
         assert ADS_BY_ID[m.ad_id].launched_date <= m.date <= WINDOW_END
 
 
-def test_late_campaign_first_dates(dataset7: Dataset) -> None:
+def test_late_campaign_first_dates(baseline7: Dataset) -> None:
     first: dict[str, date] = {}
-    for m in dataset7.metrics:
+    for m in baseline7.metrics:
         cid = campaign_for(AD_SETS_BY_ID[ADS_BY_ID[m.ad_id].ad_set_id]).campaign_id
         first[cid] = min(first.get(cid, m.date), m.date)
     assert first["C3"] == date(2026, 2, 1)
@@ -114,8 +125,8 @@ def test_late_campaign_first_dates(dataset7: Dataset) -> None:
     assert first["C9"] == date(2026, 4, 1)
 
 
-def test_row_integrity(dataset7: Dataset) -> None:
-    for m in dataset7.metrics:
+def test_row_integrity(baseline7: Dataset) -> None:
+    for m in baseline7.metrics:
         assert m.reach <= m.impressions
         assert m.link_clicks <= m.clicks
         assert m.leads <= m.link_clicks
@@ -123,10 +134,10 @@ def test_row_integrity(dataset7: Dataset) -> None:
         assert 1.0 <= m.frequency <= FREQ_CAP * 1.1
 
 
-def test_pacing_within_15_percent_of_budget(dataset7: Dataset) -> None:
+def test_pacing_within_15_percent_of_budget(baseline7: Dataset) -> None:
     events = baseline_events()
     spend: dict[tuple[str, date], float] = defaultdict(float)
-    for m in dataset7.metrics:
+    for m in baseline7.metrics:
         spend[(ADS_BY_ID[m.ad_id].ad_set_id, m.date)] += m.spend
     for (ad_set_id, day), total in spend.items():
         budget = budget_on(ad_set_id, day, events)
@@ -148,8 +159,8 @@ def _age(m: MetricRow) -> int:
     return (m.date - ADS_BY_ID[m.ad_id].launched_date).days
 
 
-def test_weekend_cvr_lower_for_a1(dataset7: Dataset) -> None:
-    a1 = [m for m in dataset7.metrics if _account(m) == "A1"]
+def test_weekend_cvr_lower_for_a1(baseline7: Dataset) -> None:
+    a1 = [m for m in baseline7.metrics if _account(m) == "A1"]
     weekend = [m for m in a1 if m.date.weekday() >= 5]
     weekday = [m for m in a1 if m.date.weekday() < 5]
     rate_weekend = sum(m.leads for m in weekend) / sum(m.link_clicks for m in weekend)
@@ -157,9 +168,11 @@ def test_weekend_cvr_lower_for_a1(dataset7: Dataset) -> None:
     assert rate_weekend < rate_weekday
 
 
-def test_retargeting_ctr_fatigues(dataset7: Dataset) -> None:
+def test_retargeting_ctr_fatigues(baseline7: Dataset) -> None:
     retargeting = [
-        m for m in dataset7.metrics if AD_SETS_BY_ID[_ad_set(m)].audience.startswith("retargeting_")
+        m
+        for m in baseline7.metrics
+        if AD_SETS_BY_ID[_ad_set(m)].audience.startswith("retargeting_")
     ]
     early = [m for m in retargeting if 8 <= _age(m) <= 37]
     late = [m for m in retargeting if 120 <= _age(m) <= 149]
@@ -168,11 +181,11 @@ def test_retargeting_ctr_fatigues(dataset7: Dataset) -> None:
     assert ctr_late < ctr_early
 
 
-def test_learning_phase_is_noisier(dataset7: Dataset) -> None:
+def test_learning_phase_is_noisier(baseline7: Dataset) -> None:
     def rates(lo: int, hi: int) -> list[float]:
         return [
             m.leads / m.link_clicks
-            for m in dataset7.metrics
+            for m in baseline7.metrics
             if lo <= _age(m) <= hi and m.link_clicks > 0
         ]
 
