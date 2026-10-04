@@ -52,6 +52,7 @@ class LintSpec:
     start: date
     end: date
     direction: str | None = None  # "highest" / "lowest" for aggregations
+    expected_groups: int | None = None  # members or points the answer must have
 
 
 @dataclass(frozen=True)
@@ -525,6 +526,7 @@ def _comparison(
     start: date,
     end: date,
     time_groups: bool,
+    expected_groups: int,
     notes: str = "",
 ) -> Candidate:
     metric = params["metric"]
@@ -536,7 +538,15 @@ def _comparison(
         order="1",
     )
     spec = LintSpec(
-        "comparison", metric, from_sql, tuple(where), label_expr, time_groups, start, end
+        "comparison",
+        metric,
+        from_sql,
+        tuple(where),
+        label_expr,
+        time_groups,
+        start,
+        end,
+        expected_groups=expected_groups,
     )
     return Candidate(
         template=template,
@@ -584,8 +594,10 @@ def c_level_build(env: Env, params: Params) -> Candidate:
         where.append(f"{level_key(model, parent)} = {_lit(pkey)}")
         parent_text = entity_text(parent, env.label(parent, pkey))
         scope = f"the {level_display(level, plural=True)} in {parent_text}"
+        members = len(_children(env, level, parent, pkey))
     else:
         scope = f"all {level_display(level, plural=True)}"
+        members = len(env.entities[level])
     text = f"Compare {metric_text} across {scope} in {period.text}."
     return _comparison(
         env,
@@ -598,6 +610,7 @@ def c_level_build(env: Env, params: Params) -> Candidate:
         period.start,
         period.end,
         time_groups=False,
+        expected_groups=members,
         notes=_notes(period),
     )
 
@@ -630,6 +643,7 @@ def c_attr_build(env: Env, params: Params) -> Candidate:
         period.start,
         period.end,
         time_groups=False,
+        expected_groups=len(env.attribute_values[attr]),
         notes=_notes(period),
     )
 
@@ -676,6 +690,7 @@ def c_months_build(env: Env, params: Params) -> Candidate:
         run[0].start,
         run[-1].end,
         time_groups=True,
+        expected_groups=len(run),
     )
 
 
@@ -692,6 +707,7 @@ def _trend(
     period_expr: str,
     start: date,
     end: date,
+    points: int,
 ) -> Candidate:
     model, level, key, metric = env.model, params["level"], params["entity"], params["metric"]
     from_sql = from_clause(model, [level], [])
@@ -703,7 +719,17 @@ def _trend(
         group="1",
         order="1",
     )
-    spec = LintSpec("trend", metric, from_sql, tuple(where), period_expr, True, start, end)
+    spec = LintSpec(
+        "trend",
+        metric,
+        from_sql,
+        tuple(where),
+        period_expr,
+        True,
+        start,
+        end,
+        expected_groups=points,
+    )
     return Candidate(
         template=template,
         category="trend",
@@ -746,7 +772,8 @@ def t_weekly_build(env: Env, params: Params) -> Candidate:
     period_expr = (
         f"date_trunc('week', {date_col(model)})" if env.ctx.grain == "day" else date_col(model)
     )
-    return _trend(env, "T_WEEKLY", params, text, period_expr, start, end)
+    weeks = int(params["weeks"])
+    return _trend(env, "T_WEEKLY", params, text, period_expr, start, end, weeks)
 
 
 def t_monthly_slots(env: Env) -> list[Params]:
@@ -776,7 +803,7 @@ def t_monthly_build(env: Env, params: Params) -> Candidate:
         f"{entity_text(level, env.label(level, key))} from {run[0].text} to {run[-1].text}."
     )
     period_expr = f"date_trunc('month', {date_col(model)})"
-    return _trend(env, "T_MONTHLY", params, text, period_expr, run[0].start, run[-1].end)
+    return _trend(env, "T_MONTHLY", params, text, period_expr, run[0].start, run[-1].end, len(run))
 
 
 # --- ambiguous and unanswerable ----------------------------------------------

@@ -1,0 +1,264 @@
+{
+  "accepted": 209,
+  "candidates_evaluated": 325,
+  "per_category": {
+    "aggregation": {
+      "selected": 15,
+      "target": 15
+    },
+    "ambiguous": {
+      "selected": 10,
+      "target": 10
+    },
+    "comparison": {
+      "selected": 15,
+      "target": 15
+    },
+    "lookup": {
+      "selected": 15,
+      "target": 15
+    },
+    "root_cause": {
+      "selected": 0,
+      "target": 0
+    },
+    "trend": {
+      "selected": 15,
+      "target": 15
+    },
+    "unanswerable": {
+      "selected": 10,
+      "target": 10
+    }
+  },
+  "rejected_by_rule": {
+    "R1_EXECUTES": 12,
+    "R2_VOLUME": 21,
+    "R3_MARGIN": 8,
+    "R5_TREND": 36,
+    "R6_DISTINCT": 10,
+    "R7_COVERAGE": 29
+  },
+  "rejected_examples": {
+    "R1_EXECUTES": [
+      {
+        "params": {
+          "entity": "AD036",
+          "level": "ad",
+          "metric": "impressions",
+          "period": "2026-W03"
+        },
+        "question": "What was the total impressions for the ad \"Local Radius 10mi | Carousel\" in the week of 12 January 2026 (Monday to Sunday)?",
+        "reason": "result contains NULL values",
+        "template": "L_TOTAL"
+      },
+      {
+        "params": {
+          "entity": "AD019",
+          "level": "ad",
+          "metric": "cpc",
+          "period": "2026-05"
+        },
+        "question": "What was the cost per click for the ad \"Women 30-55 Broad | Video\" in May 2026?",
+        "reason": "result contains NULL values",
+        "template": "L_RATIO"
+      },
+      {
+        "params": {
+          "entity": "S17",
+          "level": "ad_set",
+          "metric": "cpl",
+          "period": "2026-W02"
+        },
+        "question": "What was the cost per lead for the ad set \"Storm Zip Codes\" in the week of 5 January 2026 (Monday to Sunday)?",
+        "reason": "result contains NULL values",
+        "template": "L_RATIO"
+      }
+    ],
+    "R2_VOLUME": [
+      {
+        "params": {
+          "entity": "AD042",
+          "level": "ad",
+          "metric": "cpl",
+          "period": "2026-W10"
+        },
+        "question": "What was the cost per lead for the ad \"New Movers | Carousel\" in the week of 2 March 2026 (Monday to Sunday)?",
+        "reason": "all: 4 conversions < 20",
+        "template": "L_RATIO"
+      },
+      {
+        "params": {
+          "entity": "AD043",
+          "level": "ad",
+          "metric": "cvr",
+          "period": "2026-W23"
+        },
+        "question": "What was the conversion rate (leads per link click) for the ad \"Lookalike Customers | Video\" in the week of 1 June 2026 (Monday to Sunday)?",
+        "reason": "all: 15 conversions < 20",
+        "template": "L_RATIO"
+      },
+      {
+        "params": {
+          "entity": "AD051",
+          "level": "ad",
+          "metric": "conversions",
+          "period": "2026-W17"
+        },
+        "question": "What was the average daily leads for the ad \"Storm Zip Codes | Carousel\" in the week of 20 April 2026 (Monday to Sunday)?",
+        "reason": "all: conversions is 0, not > 0",
+        "template": "L_DAILY"
+      }
+    ],
+    "R3_MARGIN": [
+      {
+        "params": {
+          "attribute": "headline",
+          "direction": "highest",
+          "metric": "cpm",
+          "period": "2026-W17"
+        },
+        "question": "Which headline had the highest cost per thousand impressions in the week of 20 April 2026 (Monday to Sunday)?",
+        "reason": "top 14.2279 vs second 14.1567: margin 0.50% < 5%",
+        "template": "A_ATTR"
+      },
+      {
+        "params": {
+          "attribute": "headline",
+          "direction": "highest",
+          "metric": "spend",
+          "period": "2026-01"
+        },
+        "question": "Which headline had the highest spend in January 2026?",
+        "reason": "top 2371.26 vs second 2366.99: margin 0.18% < 3%",
+        "template": "A_ATTR"
+      },
+      {
+        "params": {
+          "attribute": "status",
+          "direction": "lowest",
+          "metric": "spend",
+          "period": "2026-W22"
+        },
+        "question": "Which status had the lowest spend in the week of 25 May 2026 (Monday to Sunday)?",
+        "reason": "fewer than 2 rows to rank",
+        "template": "A_ATTR"
+      }
+    ],
+    "R5_TREND": [
+      {
+        "params": {
+          "entity": "AD040",
+          "level": "ad",
+          "metric": "cpm",
+          "start": "2026-04-13",
+          "weeks": "8"
+        },
+        "question": "Look at weekly cost per thousand impressions for the ad \"New Movers | Video\" from 13 April 2026 to 7 June 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change +7.67% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      },
+      {
+        "params": {
+          "entity": "AD050",
+          "level": "ad",
+          "metric": "link_clicks",
+          "start": "2026-05-18",
+          "weeks": "6"
+        },
+        "question": "Look at weekly link clicks for the ad \"Storm Zip Codes | Image\" from 18 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change +3.12% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      },
+      {
+        "params": {
+          "entity": "AD013",
+          "level": "ad",
+          "metric": "ctr",
+          "start": "2026-04-06",
+          "weeks": "4"
+        },
+        "question": "Look at weekly click-through rate (clicks divided by impressions) for the ad \"Local Radius 15mi | Video\" from 6 April 2026 to 3 May 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change -8.56% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      }
+    ],
+    "R6_DISTINCT": [
+      {
+        "params": {
+          "level": "ad",
+          "metric": "frequency",
+          "parent_entity": "S04",
+          "parent_level": "ad_set",
+          "period": "2026-02"
+        },
+        "question": "Compare frequency (impressions divided by reach) across the ads in the ad set \"Back Pain Retargeting\" in February 2026.",
+        "reason": "Back Pain Retargeting | Image (1.57555) and Back Pain Retargeting | Video (1.57162) match",
+        "template": "C_LEVEL"
+      },
+      {
+        "params": {
+          "attribute": "placement",
+          "metric": "cpc",
+          "period": "2026-W19"
+        },
+        "question": "Compare cost per click by placement in the week of 4 May 2026 (Monday to Sunday).",
+        "reason": "advantage_plus (0.690467) and feeds (0.700399) match",
+        "template": "C_ATTR"
+      },
+      {
+        "params": {
+          "attribute": "status",
+          "metric": "cpm",
+          "period": "2026-W06"
+        },
+        "question": "Compare cost per thousand impressions by status in the week of 2 February 2026 (Monday to Sunday).",
+        "reason": "active (11.948) and paused (12.0175) match",
+        "template": "C_ATTR"
+      }
+    ],
+    "R7_COVERAGE": [
+      {
+        "params": {
+          "entity": "AD049",
+          "level": "ad",
+          "metric": "spend",
+          "period": "2026-W14"
+        },
+        "question": "What was the average daily spend for the ad \"Storm Zip Codes | Video\" in the week of 30 March 2026 (Monday to Sunday)?",
+        "reason": "all: data on 5 of 7 dates",
+        "template": "L_DAILY"
+      },
+      {
+        "params": {
+          "entity": "AD036",
+          "level": "ad",
+          "metric": "impressions",
+          "period": "whole"
+        },
+        "question": "What was the average daily impressions for the ad \"Local Radius 10mi | Carousel\" in the whole period?",
+        "reason": "all: data on 121 of 180 dates",
+        "template": "L_DAILY"
+      },
+      {
+        "params": {
+          "direction": "lowest",
+          "level": "ad",
+          "metric": "spend",
+          "period": "whole",
+          "scope_entity": "A2",
+          "scope_level": "account"
+        },
+        "question": "Which ad in the account \"Lumen Med Spa\" had the lowest spend in the whole period?",
+        "reason": "AD036: data on 121 of 180 dates",
+        "template": "A_RANK"
+      }
+    ]
+  },
+  "shortfalls": [],
+  "trend_directions": {
+    "down": 5,
+    "flat": 5,
+    "up": 5
+  }
+}

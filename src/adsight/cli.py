@@ -294,5 +294,59 @@ def semantic_check(
     console.print(f"OK: {model_path} matches {path}")
 
 
+@bench_app.command()
+def generate(
+    semantic: Annotated[Path, typer.Option("--semantic", help="Semantic model YAML.")] = Path(
+        "semantic/demo.yaml"
+    ),
+    db: DbOption = None,
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Output folder. Default: benchmark/generated/<name>."),
+    ] = None,
+    seed: Annotated[int, typer.Option("--seed", help="Selection seed.")] = 7,
+    strict: Annotated[bool, typer.Option("--strict", help="Exit 1 on any shortfall.")] = False,
+) -> None:
+    """Generate a benchmark for any database from its semantic model."""
+    from adsight.data.build import open_readonly
+    from adsight.generate.generator import generate_benchmark
+    from adsight.semantic.model import load_model
+
+    path = _db_path(db)
+    if not path.is_file():
+        err_console.print(f"database not found at {path}")
+        raise typer.Exit(1)
+    model = load_model(semantic)
+    out_dir = out if out is not None else Path("benchmark/generated") / model.name
+    con = open_readonly(path)
+    try:
+        report = generate_benchmark(model, con, seed, out_dir)
+    finally:
+        con.close()
+
+    table = Table(title=f"{model.name} benchmark (seed {seed}) -> {out_dir}")
+    for column in ("category", "target", "selected"):
+        table.add_column(column, justify="left" if column == "category" else "right")
+    for category, counts in report.per_category.items():
+        table.add_row(category, str(counts["target"]), str(counts["selected"]))
+    console.print(table)
+    console.print(f"candidates evaluated {report.candidates_evaluated}, accepted {report.accepted}")
+    rules = Table(title="rejections by rule")
+    rules.add_column("rule")
+    rules.add_column("count", justify="right")
+    for rule, count in sorted(report.rejected_by_rule.items()):
+        rules.add_row(rule, str(count))
+    console.print(rules)
+    directions = ", ".join(f"{d} {n}" for d, n in report.trend_directions.items())
+    console.print(f"trend directions: {directions}")
+    if report.shortfalls:
+        for shortfall in report.shortfalls:
+            console.print(f"SHORTFALL: {shortfall}")
+    else:
+        console.print("no shortfalls")
+    if strict and report.shortfalls:
+        raise typer.Exit(1)
+
+
 def main() -> None:
     app()

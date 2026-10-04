@@ -3,16 +3,16 @@
 adsight is a text-to-SQL marketing analytics agent. A question in plain English
 about ad performance goes in; a DuckDB SQL query and its answer come out. The
 project benchmarks five agent architectures against the same question set and
-synthetic ad dataset. Status: synthetic dataset built; no agent or benchmark yet.
+synthetic ad dataset. Status: dataset, semantic layer and benchmark generator built;
+no agent yet.
 
 ## How to run
 
 ```
 uv sync                       # create .venv and install everything
-uv run adsight version        # prints "adsight 0.1.0"
 uv run adsight data           # build data/adsight.duckdb + data/manifest.json
-uv run adsight bench refs     # check stored expected answers against reference SQL
-uv run adsight bench refs --write   # (re)compute and store them
+uv run adsight bench refs     # check the gold set's expected answers against its SQL
+uv run adsight bench generate # write benchmark/generated/adsight-demo/
 uv run adsight semantic check semantic/demo.yaml   # mapping fits the database
 uv run pytest                 # offline test suite with coverage
 uv run ruff check             # lint
@@ -20,34 +20,20 @@ uv run ruff format --check    # formatting
 uv run mypy src               # strict type check
 ```
 
-`/check` runs all four checks in order.
+`/check` runs the last four in order.
 
-## Layout so far
+## Layout
 
-| File | What it does |
+| Path | What it holds |
 |---|---|
-| `src/adsight/config.py` | `Settings` from `ADSIGHT_*` env vars and optional `.env`: `data_dir`, `seed`, `log_level`, `db_path`. |
-| `src/adsight/log.py` | JSON-lines logging. `configure_logging`, `reset_logging`, `get_logger`, `set_run_id`/`get_run_id`. Extra fields via `extra={"fields": {...}}`. |
-| `src/adsight/cli.py` | Typer app, entry point `adsight`. Commands: `version`, `data`. |
-| `src/adsight/data/schema.sql` | The six DuckDB tables, loaded via `importlib.resources`. |
-| `src/adsight/data/catalog.py` | Fixed fictional catalog (accounts, campaigns, ad sets, ads), vertical parameters, model constants, lookup helpers. |
-| `src/adsight/data/events.py` | `ChangeEvent`, `baseline_events()`, and state from events: `budget_on`, `audience_on`, `ad_active_on`, `learning_phase`/`learning_start`. |
-| `src/adsight/data/incidents.py` | The five `INCIDENTS`, `incident_events()`, and hidden-effect helpers: `winner_multiplier`, `extra_frequency`, `lead_multiplier`. |
-| `src/adsight/data/generator.py` | `generate(seed, events, incidents)` -> `Dataset`: one metrics row per active ad per day; `clip`, `poisson`, `cpm_base`. |
-| `src/adsight/data/manifest.py` | `measure()` each incident from the metrics, `build_manifest()`, `write_manifest()`. |
-| `src/adsight/benchmark/answer.py` | `AgentAnswer` and `NamedValue`: the contract every architecture returns. |
-| `src/adsight/benchmark/questions.py` | `Question`, the seven `Scoring` types, `Expected`, `load_questions`/`save_questions`, benchmark constants. |
-| `src/adsight/benchmark/refs.py` | `expected_from_rows` and `compute_expected`: reference SQL result -> `Expected`. |
-| `src/adsight/benchmark/score.py` | `matches`, rule-based `score`, and `reference_answer` (the perfect answer). |
-| `benchmark/questions.jsonl` | The questions, one JSON object per line. |
-| `benchmark/reference_sql/` | One `<ID>.sql` per question that has a numeric, entity, numeric_set or trend answer. |
-| `src/adsight/semantic/model.py` | `SemanticModel` (fact, measures, levels, attributes, change log); `load_model`/`dump_model`. |
-| `src/adsight/semantic/sql.py` | `from_clause` (fact `f` + LEFT JOINs up the hierarchy), `level_key`, `level_label`, `attribute_col`, `date_col`. |
-| `src/adsight/semantic/metrics.py` | The metric library: `METRICS`, `available_metrics`, `sql_expr`. |
-| `src/adsight/semantic/inspect.py` | `draft_model`: propose a mapping for an unknown database, with notes. |
-| `src/adsight/semantic/check.py` | `check_model`: tables, columns, types, orphan keys and date spacing. |
+| `src/adsight/config.py`, `log.py`, `cli.py` | Settings (`ADSIGHT_*`), JSON-lines logging, the Typer CLI: `version`, `data`, `load`, `inspect`, `semantic check`, `bench refs`, `bench generate`. |
+| `src/adsight/data/` | `schema.sql`, `catalog.py` (fictional entities, constants), `events.py` (state from events), `incidents.py`, `generator.py` (`generate(seed, events, incidents)`), `manifest.py`, `build.py` (CSV + `COPY` load, `open_readonly`). |
+| `src/adsight/benchmark/` | `answer.py` (`AgentAnswer`), `questions.py` (`Question`, scoring types, JSONL), `refs.py` (reference SQL -> `Expected`), `score.py` (`matches`, `score`, `reference_answer`). |
+| `src/adsight/semantic/` | `model.py` (the YAML mapping), `sql.py` (FROM/JOIN chains, column refs), `metrics.py` (the metric library), `inspect.py` (`draft_model`), `check.py` (`check_model`). |
+| `src/adsight/generate/` | `context.py`, `periods.py`, `wording.py`, `templates.py`, `lint.py`, `generator.py` (`generate_benchmark`). |
 | `semantic/demo.yaml` | The mapping for the demo database, drafted by `adsight inspect`. |
-| `src/adsight/data/build.py` | `build_database(dataset, path)` (fresh file, CSV + `COPY` load) and `open_readonly(path)`. |
+| `benchmark/questions.jsonl`, `benchmark/reference_sql/` | The hand-written GOLD SET (100 questions, 60 SQL files). A test fixture only. |
+| `benchmark/generated/adsight-demo/` | The published benchmark: `questions.jsonl`, `reference_sql/`, `context.json`, `lint_report.json`. |
 
 ## Data contract
 
@@ -60,7 +46,7 @@ uv run mypy src               # strict type check
 - State comes from events; add an event, never edit the generator, to change history.
 - Learning profiles: an audience edit restarts learning harder than a launch or a
   budget change.
-- `adsight data [--seed N] [--data-dir DIR]` writes `<data-dir>/adsight.duckdb` and `manifest.json`
+- `adsight data [--seed N] [--data-dir DIR]` writes `adsight.duckdb` and `manifest.json`
   (defaults: `ADSIGHT_SEED` or 7, `ADSIGHT_DATA_DIR` or `data`). `data/` is git-ignored.
 
 | Incident | Kind | Scope | Date | In events_log |
@@ -78,42 +64,64 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 ## Benchmark contract
 
 - Defined on seed 7. `BENCHMARK_TODAY` is 2026-06-30; data covers 2026-01-01 to 2026-06-29.
-- 100 questions: lookup 15, aggregation 15, comparison 15, trend 15, root_cause 20,
-  ambiguous 10, unanswerable 10. The 60 SQL-scored questions have reference SQL.
+- Gold set: 100 questions (lookup 15, aggregation 15, comparison 15, trend 15,
+  root_cause 20, ambiguous 10, unanswerable 10).
 - `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`
   (label + value), `entities` (best first), `direction` (up / down / flat), `assumptions`,
   `sql` (informational only).
 - Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0001); a
-  ratio may also be given as a percent. Matching is one-to-one: each answer value can
-  satisfy only one expected value (maximum bipartite matching).
+  ratio may also be given as a percent. Matching is one-to-one (maximum bipartite).
 - numeric / numeric_set: kind answer, every expected value matched by an answer value.
 - entity: kind answer, first entity equals the expected id or name (case-insensitive).
 - trend: kind answer, direction right, and both first and last values matched.
 - root_cause: kind answer and every required regex matches the summary. Ground truth is
-  `incident_ids` (reference = their manifest causes joined) or a `reference_summary` for
-  no-incident questions. Regexes cannot tell "it was X" from "it was not X", so invented
-  causes are judged later by an LLM, not by regex.
+  `incident_ids` (their manifest causes joined) or a `reference_summary`. Invented causes
+  are judged later by an LLM, not by regex.
 - clarify: kind clarify, or kind answer with at least one stated assumption.
 - refuse: kind cannot_answer with no values.
-- Expected values come only from reference SQL via `adsight bench refs --write`; never
-  type them by hand.
+- Expected values come only from reference SQL (`bench refs --write` or the generator);
+  never type them by hand.
 
 ## Semantic layer
 
-- A YAML mapping says what each column of ANY ad dataset means: the fact table and its
-  date column and grain (day or week), the canonical measures, the entity levels top to
-  bottom (each with its table, key, label and parent_key), group-by attributes, and an
-  optional change log. A level whose table is the fact table is flat data, with no join.
+- A YAML mapping says what each column of ANY ad dataset means: the fact table, its date
+  column and grain (day or week), the canonical measures, the entity levels top to bottom
+  (table, key, label, parent_key), group-by attributes, and an optional change log. A
+  level whose table is the fact table is flat data, with no join.
 - Canonical measures: spend, impressions and conversions are required; clicks,
   link_clicks and reach are optional. Reach is never summed on its own.
-- Metrics: spend, impressions, clicks, link_clicks, conversions, cpl, ctr, cpc, cpm,
-  cvr (over link clicks, or over clicks when link clicks are unmapped) and frequency.
-  A metric is available only when every measure it needs is mapped.
-- Commands: `adsight load <csv...> --db <path>` (one table per file; `--force` to
-  overwrite), `adsight inspect --db <path> --out <yaml> [--name]` (draft + notes),
-  `adsight semantic check <yaml> --db <path>` (exit 1 lists the problems).
-- Metrics are defined once here; templates, reference SQL and agents read them, never raw
-  column names.
+- Metrics: spend, impressions, clicks, link_clicks, conversions, cpl, ctr, cpc, cpm, cvr
+  (over link clicks, or clicks when unmapped) and frequency; available only when mapped.
+- Commands: `adsight load <csv...> --db <path> [--force]`, `adsight inspect --db <path>
+  --out <yaml> [--name]`, `adsight semantic check <yaml> --db <path>`.
+- Metrics are defined once here. Generated questions and the agents use this library,
+  never raw column names. The gold set's hand-written SQL deliberately does not, so it
+  checks the library independently.
+
+## Benchmark generator
+
+- `adsight bench generate --semantic <yaml> --db <path> --out <dir> --seed 7 [--strict]`
+  reads any database through its semantic model and writes questions, reference SQL,
+  expected answers, `context.json` and `lint_report.json`. Same seed, same bytes.
+- Targets: lookup 15, aggregation 15, comparison 15, trend 15 (5 up, 5 down, 5 flat),
+  root_cause 0 (later step), ambiguous 10, unanswerable 10.
+- Templates: lookup L_TOTAL, L_RATIO, L_ALL, L_DAILY; aggregation A_RANK, A_ATTR,
+  A_MONTH, A_WEEKDAY; comparison C_LEVEL, C_ATTR, C_MONTHS; trend T_WEEKLY, T_MONTHLY.
+  Ambiguous phrasings and unanswerable probes are offered only when the data allows.
+- Per template: shuffle slots by seed, lint at most 60; select round-robin, no template
+  above 40% of its category unless the others ran out. `--strict` exits 1 on a shortfall.
+- Linter, first failure rejects:
+  - R1_EXECUTES: SQL runs, returns rows, no NULLs.
+  - R2_VOLUME: >= 20 conversions for cpl/cvr (10 per trend point), >= 1000 impressions
+    for ctr/cpm/frequency, >= 100 clicks for cpc, additive values > 0.
+  - R3_MARGIN: winner beats runner-up by >= 3% (additive) or 5% (ratio).
+  - R4_DEFINITION: ctr/cvr winner unchanged under the alternative click definition.
+  - R5_TREND: |change| >= 9% or <= 2%.
+  - R6_DISTINCT: no two comparison values match each other.
+  - R7_COVERAGE: every member and point present, each with data on >= 80% of the dates.
+  - R8_DUPLICATE: no repeated (template, params).
+- The gold set (benchmark/questions.jsonl) is a test fixture, never the published
+  benchmark.
 
 ## Rules
 

@@ -1,0 +1,11 @@
+SELECT ad_set.ad_set_id AS key,
+       ad_set.name AS label,
+       SUM(f.impressions) AS value
+FROM daily_ad_metrics f
+LEFT JOIN ads ad ON ad.ad_id = f.ad_id
+LEFT JOIN ad_sets ad_set ON ad_set.ad_set_id = ad.ad_set_id
+LEFT JOIN campaigns campaign ON campaign.campaign_id = ad_set.campaign_id
+WHERE f.date BETWEEN DATE '2026-03-02' AND DATE '2026-03-08'
+  AND campaign.campaign_id = 'C1'
+GROUP BY 1, 2
+ORDER BY value ASC, key;

@@ -315,3 +315,18 @@ def test_compute_expected_reads_generated_sql(
         }
     )
     assert matches(109460.88, compute_expected(q, tmp_path, demo_con).values["spend"], "usd")
+
+
+def test_missing_member_rejected_by_r7(demo_env: Env, demo_con: duckdb.DuckDBPyConnection) -> None:
+    # AD019 is paused from 2026-03-16, so only 2 of S07's 3 ads have May data
+    params = {
+        "level": "ad",
+        "parent_level": "ad_set",
+        "parent_entity": "S07",
+        "metric": "spend",
+        "period": "2026-05",
+    }
+    cand, result = _lint(demo_env, demo_con, "C_LEVEL", params)
+    assert len(_rows(demo_con, cand)) == 2
+    assert result.rule == "R7_COVERAGE", result
+    assert "2 of 3" in result.reason

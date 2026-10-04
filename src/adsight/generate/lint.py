@@ -244,7 +244,13 @@ def _lint_sql(
         if not distinct.ok:
             return distinct
 
-    # R7: coverage of every scope the answer depends on
+    # R7: coverage of every scope the answer depends on; a missing member or point
+    # has no data at all
+    if spec.expected_groups is not None and len(rows) != spec.expected_groups:
+        return _reject(
+            "R7_COVERAGE",
+            f"{len(rows)} of {spec.expected_groups} members or points have data",
+        )
     denominators = _date_denominators(con, model, spec)
     for key in scope_keys:
         total = denominators.get(key if spec.time_groups else "*", 0)

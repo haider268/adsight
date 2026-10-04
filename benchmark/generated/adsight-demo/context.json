@@ -1,0 +1,9 @@
+{
+  "conversion_name": "lead",
+  "conversion_plural": "leads",
+  "data_end": "2026-06-29",
+  "data_start": "2026-01-01",
+  "grain": "day",
+  "name": "adsight-demo",
+  "today": "2026-06-30"
+}
