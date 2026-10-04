@@ -129,6 +129,8 @@ class Question(_Frozen):
     reference_sql: str | None = None
     expected: Expected | None = None
     notes: str = ""
+    template: str | None = None  # the generator template that made it, if any
+    params: dict[str, str] = {}  # that template's slot values
 
     @model_validator(mode="after")
     def _consistent(self) -> "Question":
@@ -167,11 +169,15 @@ def load_questions(path: Path) -> list[Question]:
     return questions
 
 
+def _dump(question: Question) -> dict[str, object]:
+    data = question.model_dump(mode="json", exclude_none=True)
+    if not data.get("params"):
+        data.pop("params", None)
+    return data
+
+
 def save_questions(questions: list[Question], path: Path) -> None:
     """Write one compact JSON object per line, in the given order."""
-    lines = [
-        json.dumps(q.model_dump(mode="json", exclude_none=True), separators=(",", ":"))
-        for q in questions
-    ]
+    lines = [json.dumps(_dump(q), separators=(",", ":")) for q in questions]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
