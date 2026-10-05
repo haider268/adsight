@@ -25,10 +25,13 @@ from adsight.generate.periods import (
 )
 from adsight.generate.wording import (
     attribute_display,
+    daily_phrase,
     entity_text,
     is_additive,
     level_display,
     metric_display,
+    rank_phrase,
+    total_phrase,
 )
 from adsight.semantic.inspect import normalise
 from adsight.semantic.metrics import METRICS, available_metrics, sql_expr
@@ -53,6 +56,7 @@ class LintSpec:
     end: date
     direction: str | None = None  # "highest" / "lowest" for aggregations
     expected_groups: int | None = None  # members or points the answer must have
+    per_day: bool = False  # the answer is a daily average (L_DAILY)
 
 
 @dataclass(frozen=True)
@@ -225,7 +229,14 @@ def _consecutive_months(env: Env, size: int) -> list[list[Period]]:
 # --- lookups -----------------------------------------------------------------
 
 
-def _lookup(env: Env, template: str, params: Params, select_expr: str, text: str) -> Candidate:
+def _lookup(
+    env: Env,
+    template: str,
+    params: Params,
+    select_expr: str,
+    text: str,
+    per_day: bool = False,
+) -> Candidate:
     model = env.model
     metric, period = params["metric"], env.periods[params["period"]]
     if "level" in params:
@@ -239,7 +250,17 @@ def _lookup(env: Env, template: str, params: Params, select_expr: str, text: str
         from_sql = from_clause(model, [], [])
         where = [_between(env, period.start, period.end)]
     sql = render_sql([f"{select_expr} AS {metric}"], from_sql, where)
-    spec = LintSpec("lookup", metric, from_sql, tuple(where), None, False, period.start, period.end)
+    spec = LintSpec(
+        "lookup",
+        metric,
+        from_sql,
+        tuple(where),
+        None,
+        False,
+        period.start,
+        period.end,
+        per_day=per_day,
+    )
     return Candidate(
         template=template,
         category="lookup",
@@ -269,7 +290,7 @@ def l_total_slots(env: Env) -> list[Params]:
 def l_total_build(env: Env, params: Params) -> Candidate:
     m, lv, key = params["metric"], params["level"], params["entity"]
     text = (
-        f"What was the total {metric_display(m, env.model, env.ctx)} for "
+        f"What was the {total_phrase(m, env.model, env.ctx)} for "
         f"{entity_text(lv, env.label(lv, key))} in {env.periods[params['period']].text}?"
     )
     return _lookup(env, "L_TOTAL", params, sql_expr(env.model, m), text)
@@ -296,7 +317,7 @@ def l_all_build(env: Env, params: Params) -> Candidate:
     m = params["metric"]
     top_plural = level_display(env.levels()[0], plural=True)
     text = (
-        f"What was the total {metric_display(m, env.model, env.ctx)} across all {top_plural} "
+        f"What was the {total_phrase(m, env.model, env.ctx)} across all {top_plural} "
         f"in {env.periods[params['period']].text}?"
     )
     return _lookup(env, "L_ALL", params, sql_expr(env.model, m), text)
@@ -311,11 +332,11 @@ def l_daily_slots(env: Env) -> list[Params]:
 def l_daily_build(env: Env, params: Params) -> Candidate:
     m, lv, key = params["metric"], params["level"], params["entity"]
     text = (
-        f"What was the average daily {metric_display(m, env.model, env.ctx)} for "
+        f"What was the {daily_phrase(m, env.model, env.ctx)} for "
         f"{entity_text(lv, env.label(lv, key))} in {env.periods[params['period']].text}?"
     )
     expr = f"CAST({sql_expr(env.model, m)} AS DOUBLE) / COUNT(DISTINCT {date_col(env.model)})"
-    return _lookup(env, "L_DAILY", params, expr, text)
+    return _lookup(env, "L_DAILY", params, expr, text, per_day=True)
 
 
 # --- aggregations ------------------------------------------------------------
@@ -393,8 +414,8 @@ def a_rank_build(env: Env, params: Params) -> Candidate:
         where.append(f"{level_key(model, higher)} = {_lit(pkey)}")
         scope_text = f" in {entity_text(higher, env.label(higher, pkey))}"
     text = (
-        f"Which {level_display(level)}{scope_text} had the {params['direction']} "
-        f"{metric_display(params['metric'], model, env.ctx)} in {period.text}?"
+        f"Which {level_display(level)}{scope_text} had "
+        f"{rank_phrase(params['metric'], params['direction'], model, env.ctx)} in {period.text}?"
     )
     return _ranking(
         env,
@@ -416,7 +437,7 @@ def a_attr_slots(env: Env) -> list[Params]:
     return [
         {"attribute": a, "metric": m, "direction": d, "period": p}
         for a, values in env.attribute_values.items()
-        if len(values) >= 2
+        if len(values) >= 2 and not env.model.attribute(a).time_varying
         for m in env.metrics
         for d in ("highest", "lowest")
         for p in env.periods
@@ -428,8 +449,8 @@ def a_attr_build(env: Env, params: Params) -> Candidate:
     period = env.periods[params["period"]]
     col = attribute_col(model, attr)
     text = (
-        f"Which {attribute_display(attr)} had the {params['direction']} "
-        f"{metric_display(params['metric'], model, env.ctx)} in {period.text}?"
+        f"Which {attribute_display(attr)} had "
+        f"{rank_phrase(params['metric'], params['direction'], model, env.ctx)} in {period.text}?"
     )
     return _ranking(
         env,
@@ -463,8 +484,8 @@ def a_month_build(env: Env, params: Params) -> Candidate:
     expr = _month_expr(env)
     keys = ", ".join(_lit(p.key) for p in env.months)
     text = (
-        f"Which full calendar month had the {params['direction']} total "
-        f"{metric_display(params['metric'], model, env.ctx)}?"
+        f"Which full calendar month had "
+        f"{rank_phrase(params['metric'], params['direction'], model, env.ctx)}?"
     )
     return _ranking(
         env,
@@ -619,7 +640,7 @@ def c_attr_slots(env: Env) -> list[Params]:
     return [
         {"attribute": a, "metric": m, "period": p}
         for a, values in env.attribute_values.items()
-        if 2 <= len(values) <= 6
+        if 2 <= len(values) <= 6 and not env.model.attribute(a).time_varying
         for m in env.metrics
         for p in env.periods
     ]

@@ -40,6 +40,7 @@ LEVEL_SYNONYMS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 ATTRIBUTE_MIN_VALUES = 2
 ATTRIBUTE_MAX_VALUES = 20
+TIME_VARYING_NAMES = ("status", "state", "effective_status", "delivery", "delivery_status")
 
 
 class InspectError(Exception):
@@ -208,8 +209,27 @@ def _find_levels(
     return levels
 
 
+def _change_log_values(con: duckdb.DuckDBPyConnection, log: ChangeLog | None) -> set[str]:
+    """Every old/new value the change log records, as text."""
+    if log is None:
+        return set()
+    values: set[str] = set()
+    for column in (log.old_value, log.new_value):
+        if column is not None:
+            rows = con.execute(
+                f"SELECT DISTINCT CAST({_q(column)} AS VARCHAR) FROM {_q(log.table)} "
+                f"WHERE {_q(column)} IS NOT NULL"
+            ).fetchall()
+            values.update(str(r[0]) for r in rows)
+    return values
+
+
 def _find_attributes(
-    con: duckdb.DuckDBPyConnection, tables: list[_Table], levels: list[Level], draft: _Draft
+    con: duckdb.DuckDBPyConnection,
+    tables: list[_Table],
+    levels: list[Level],
+    change_log: ChangeLog | None,
+    draft: _Draft,
 ) -> list[Attribute]:
     by_name = {t.name: t for t in tables}
     reserved = {
@@ -220,6 +240,7 @@ def _find_attributes(
     }
     # every level key is a key wherever it appears, not only in its own table
     key_norms = {normalise(lv.key) for lv in levels}
+    logged_values = _change_log_values(con, change_log)
     attributes: list[Attribute] = []
     seen_tables: list[str] = []
     for lv in levels:
@@ -236,8 +257,23 @@ def _find_attributes(
             name = col.name
             if any(a.name == name for a in attributes):
                 name = f"{lv.name}_{col.name}"
-            attributes.append(Attribute(name=name, table=lv.table, column=col.name))
-            draft.note(f"attribute {name}: {lv.table}.{col.name} ({n} values)")
+            values = {
+                str(r[0])
+                for r in con.execute(
+                    f"SELECT DISTINCT {_q(col.name)} FROM {_q(lv.table)} "
+                    f"WHERE {_q(col.name)} IS NOT NULL"
+                ).fetchall()
+            }
+            if col.norm in TIME_VARYING_NAMES:
+                why = f", time-varying (its name {col.norm!r} is a state column)"
+            elif values & logged_values:
+                why = ", time-varying (its values appear in the change log)"
+            else:
+                why = ""
+            attributes.append(
+                Attribute(name=name, table=lv.table, column=col.name, time_varying=bool(why))
+            )
+            draft.note(f"attribute {name}: {lv.table}.{col.name} ({n} values){why}")
     return attributes
 
 
@@ -297,8 +333,8 @@ def draft_model(con: duckdb.DuckDBPyConnection, name: str) -> tuple[SemanticMode
     levels = _find_levels(con, tables, fact, draft)
     if not levels:
         raise InspectError("no entity levels found (account, campaign, ad set or ad ids)")
-    attributes = _find_attributes(con, tables, levels, draft)
     change_log = _find_change_log(tables, fact, draft)
+    attributes = _find_attributes(con, tables, levels, change_log, draft)
     conversion_name = "lead" if normalise(measures["conversions"]) == "leads" else "conversion"
     draft.note(f"conversion_name: {conversion_name}")
 

@@ -43,6 +43,7 @@ attributes:
 - name: audience
   table: ad_sets
   column: audience
+  time_varying: true
 - name: placement
   table: ad_sets
   column: placement
@@ -55,6 +56,7 @@ attributes:
 - name: status
   table: ads
   column: status
+  time_varying: true
 change_log:
   table: events_log
   date: date

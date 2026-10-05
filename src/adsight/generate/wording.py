@@ -43,3 +43,28 @@ def entity_text(level: str, label: str) -> str:
 
 def attribute_display(name: str) -> str:
     return name.replace("_", " ")
+
+
+COUNT_METRICS = ("impressions", "clicks", "link_clicks", "conversions")
+
+
+def total_phrase(metric: str, model: SemanticModel, ctx: DatasetContext) -> str:
+    """'total spend' or 'total number of leads', for lookups of additive metrics."""
+    if metric in COUNT_METRICS:
+        return f"total number of {metric_display(metric, model, ctx)}"
+    return f"total {metric_display(metric, model, ctx)}"
+
+
+def daily_phrase(metric: str, model: SemanticModel, ctx: DatasetContext) -> str:
+    """'average daily spend' or 'average number of leads per day'."""
+    if metric in COUNT_METRICS:
+        return f"average number of {metric_display(metric, model, ctx)} per day"
+    return f"average daily {metric_display(metric, model, ctx)}"
+
+
+def rank_phrase(metric: str, direction: str, model: SemanticModel, ctx: DatasetContext) -> str:
+    """'the most leads', 'the highest spend' or 'the lowest cost per lead'."""
+    if metric in COUNT_METRICS:
+        word = "most" if direction == "highest" else "fewest"
+        return f"the {word} {metric_display(metric, model, ctx)}"
+    return f"the {direction} {metric_display(metric, model, ctx)}"

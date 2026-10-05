@@ -1,5 +1,7 @@
-SELECT CAST(SUM(f.spend) AS DOUBLE) / NULLIF(CAST(SUM(f.clicks) AS DOUBLE), 0) AS cpc
+SELECT CAST(SUM(f.spend) AS DOUBLE) * 1000.0 / NULLIF(CAST(SUM(f.impressions) AS DOUBLE), 0) AS cpm
 FROM daily_ad_metrics f
 LEFT JOIN ads ad ON ad.ad_id = f.ad_id
-WHERE ad.ad_id = 'AD037'
-  AND f.date BETWEEN DATE '2026-05-11' AND DATE '2026-05-17';
+LEFT JOIN ad_sets ad_set ON ad_set.ad_set_id = ad.ad_set_id
+LEFT JOIN campaigns campaign ON campaign.campaign_id = ad_set.campaign_id
+WHERE campaign.campaign_id = 'C4'
+  AND f.date BETWEEN DATE '2026-05-31' AND DATE '2026-06-29';

@@ -87,7 +87,9 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 - A YAML mapping says what each column of ANY ad dataset means: the fact table, its date
   column and grain (day or week), the canonical measures, the entity levels top to bottom
   (table, key, label, parent_key), group-by attributes, and an optional change log. A
-  level whose table is the fact table is flat data, with no join.
+  level whose table is the fact table is flat data, with no join. A `time_varying`
+  attribute (a state column, or one whose values appear in the change log) is an
+  end-of-data snapshot and never groups past periods.
 - Canonical measures: spend, impressions and conversions are required; clicks,
   link_clicks and reach are optional. Reach is never summed on its own.
 - Metrics: spend, impressions, clicks, link_clicks, conversions, cpl, ctr, cpc, cpm, cvr
@@ -108,12 +110,15 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 - Templates: lookup L_TOTAL, L_RATIO, L_ALL, L_DAILY; aggregation A_RANK, A_ATTR,
   A_MONTH, A_WEEKDAY; comparison C_LEVEL, C_ATTR, C_MONTHS; trend T_WEEKLY, T_MONTHLY.
   Ambiguous phrasings and unanswerable probes are offered only when the data allows.
-- Per template: shuffle slots by seed, lint at most 60; select round-robin, no template
-  above 40% of its category unless the others ran out. `--strict` exits 1 on a shortfall.
+- Per template: shuffle slots by seed (period slots interleaved by kind: month, quarter,
+  last30, whole, week), lint at most 60; select round-robin, no template above 40% of its
+  category unless the others ran out, week periods at most 30% of a category's
+  period-based questions. `--strict` exits 1 on a shortfall.
 - Linter, first failure rejects:
   - R1_EXECUTES: SQL runs, returns rows, no NULLs.
-  - R2_VOLUME: >= 20 conversions for cpl/cvr (10 per trend point), >= 1000 impressions
-    for ctr/cpm/frequency, >= 100 clicks for cpc, additive values > 0.
+  - R2_VOLUME: >= 20 conversions for cpl/cvr/conversions (10 per point or member),
+    >= 100 clicks for cpc/clicks/link clicks (50 per point or member), >= 1000
+    impressions, spend > 0, and >= 1 conversion a day for daily averages.
   - R3_MARGIN: winner beats runner-up by >= 3% (additive) or 5% (ratio).
   - R4_DEFINITION: ctr/cvr winner unchanged under the alternative click definition.
   - R5_TREND: |change| >= 9% or <= 2%.

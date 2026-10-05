@@ -24,6 +24,8 @@ MIN_CONVERSIONS = 20
 MIN_CONVERSIONS_PER_POINT = 10
 MIN_IMPRESSIONS = 1000
 MIN_CLICKS = 100
+MIN_CLICKS_PER_POINT = 50
+MIN_DAILY_CONVERSIONS = 1.0
 MARGIN_ADDITIVE = 0.03
 MARGIN_RATIO = 0.05
 TREND_MIN_CHANGE = 9.0
@@ -106,8 +108,25 @@ def _volume_problem(spec: LintSpec, scope: _Scope) -> str | None:
     elif metric == "cpc":
         if (scope.clicks or 0) < MIN_CLICKS:
             return f"{scope.key}: {scope.clicks or 0:g} clicks < {MIN_CLICKS}"
-    elif is_additive(metric) and not (scope.value or 0) > 0:
-        return f"{scope.key}: {metric} is {scope.value or 0:g}, not > 0"
+    elif is_additive(metric):
+        return _additive_volume_problem(spec, scope)
+    return None
+
+
+def _additive_volume_problem(spec: LintSpec, scope: _Scope) -> str | None:
+    """Additive metrics need real volume: a point or member may be smaller than a scope."""
+    metric, value = spec.metric, scope.value or 0.0
+    member = spec.kind in ("trend", "comparison")
+    if metric == "conversions":
+        need = MIN_CONVERSIONS_PER_POINT if member else MIN_CONVERSIONS
+    elif metric in ("clicks", "link_clicks"):
+        need = MIN_CLICKS_PER_POINT if member else MIN_CLICKS
+    elif metric == "impressions":
+        need = MIN_IMPRESSIONS
+    else:  # spend
+        return None if value > 0 else f"{scope.key}: {metric} is {value:g}, not > 0"
+    if value < need:
+        return f"{scope.key}: {value:g} {metric} < {need}"
     return None
 
 
@@ -193,6 +212,13 @@ def _lint_sql(
         problem = _volume_problem(spec, scope)
         if problem:
             return _reject("R2_VOLUME", problem)
+    if spec.per_day and spec.metric == "conversions":
+        average = _num(rows[0][0])
+        if average < MIN_DAILY_CONVERSIONS:
+            return _reject(
+                "R2_VOLUME",
+                f"average {average:.3g} conversions per day < {MIN_DAILY_CONVERSIONS:g}",
+            )
 
     ratio = not is_additive(spec.metric)
     if spec.kind == "aggregation":

@@ -55,6 +55,8 @@ class Attribute(_Frozen):
     name: str
     table: str
     column: str
+    time_varying: bool = False  # its value changes over time (e.g. status), so it is a
+    # snapshot at the end of the data and must not be used to group past periods
 
 
 class ChangeLog(_Frozen):
@@ -119,6 +121,9 @@ def load_model(path: Path) -> SemanticModel:
 
 def dump_model(model: SemanticModel, path: Path) -> None:
     data = model.model_dump(mode="json", exclude_none=True)
+    for attr in data.get("attributes", []):
+        if not attr.get("time_varying"):
+            attr.pop("time_varying", None)
     path.parent.mkdir(parents=True, exist_ok=True)
     text = yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
     path.write_text(text, encoding="utf-8", newline="\n")

@@ -20,6 +20,8 @@ from adsight.generate.lint import lint
 from adsight.generate.templates import (
     TEMPLATES,
     Candidate,
+    Env,
+    Params,
     Template,
     ambiguous_candidate,
     ambiguous_phrasings,
@@ -45,6 +47,8 @@ TREND_PER_DIRECTION = 5
 TREND_FLAT_BAND_PCT = 5.0
 MAX_EXAMPLES_PER_RULE = 3
 DIRECTIONS = ("up", "down", "flat")
+PERIOD_KIND_ORDER = ("month", "quarter", "last30", "whole", "week")
+MAX_WEEK_SHARE = 0.30  # of a category's period-based questions, rounded down
 
 
 @dataclass
@@ -150,6 +154,39 @@ def _round_robin(
                         break
 
 
+def _order_slots(slots: list[Params], env: Env, rng: random.Random) -> list[Params]:
+    """Shuffle slots; slots with a period are shuffled within each period kind and then
+    interleaved round-robin by kind, so the many weekly periods cannot crowd out the rest."""
+    if not slots or "period" not in slots[0]:
+        rng.shuffle(slots)
+        return slots
+    groups: dict[str, list[Params]] = {kind: [] for kind in PERIOD_KIND_ORDER}
+    for params in slots:
+        groups[env.periods[params["period"]].kind].append(params)
+    for kind in PERIOD_KIND_ORDER:
+        rng.shuffle(groups[kind])
+    ordered: list[Params] = []
+    for i in range(max(len(g) for g in groups.values())):
+        for kind in PERIOD_KIND_ORDER:
+            if i < len(groups[kind]):
+                ordered.append(groups[kind][i])
+    return ordered
+
+
+def _is_week(env: Env, cand: Candidate) -> bool:
+    return "period" in cand.params and env.periods[cand.params["period"]].kind == "week"
+
+
+def _week_share_ok(env: Env, cand: Candidate, chosen: list[Candidate]) -> bool:
+    """A weekly-period question may join only if weeks stay within MAX_WEEK_SHARE of the
+    category's period-based questions, counting this one."""
+    if not _is_week(env, cand):
+        return True
+    period_based = sum(1 for c in chosen if "period" in c.params) + 1
+    weeks = sum(1 for c in chosen if _is_week(env, c)) + 1
+    return weeks <= math.floor(MAX_WEEK_SHARE * period_based)
+
+
 def _enough(category: str, accepted: list[Candidate], directions: dict[int, str]) -> bool:
     if category != "trend":
         return len(accepted) >= TARGETS[category]
@@ -171,8 +208,7 @@ def generate_benchmark(
     by_category: dict[str, list[Template]] = {}
     for template in TEMPLATES:
         by_category.setdefault(template.category, []).append(template)
-        slots = template.slots(env)
-        random.Random(f"{seed}:{template.id}").shuffle(slots)
+        slots = _order_slots(template.slots(env), env, random.Random(f"{seed}:{template.id}"))
         accepted: list[Candidate] = []
         for params in slots[:MAX_LINTED_PER_TEMPLATE]:
             cand = template.build(env, params)
@@ -204,6 +240,15 @@ def generate_benchmark(
                         f"trend: only {have} {d} of {TREND_PER_DIRECTION} wanted; "
                         "filled from other directions"
                     )
+        else:
+            _round_robin(
+                pools, order, target, chosen, lambda c, chosen: _week_share_ok(env, c, chosen)
+            )
+            if len(chosen) < target:
+                report.shortfalls.append(
+                    f"{category}: the {MAX_WEEK_SHARE:.0%} week-period cap left {len(chosen)} "
+                    f"of {target}; filled with week-period questions"
+                )
         _round_robin(pools, order, target, chosen, lambda c, chosen: True)
         selected[category] = chosen
 

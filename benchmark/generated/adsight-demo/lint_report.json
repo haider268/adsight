@@ -1,6 +1,6 @@
 {
-  "accepted": 209,
-  "candidates_evaluated": 325,
+  "accepted": 212,
+  "candidates_evaluated": 375,
   "per_category": {
     "aggregation": {
       "selected": 15,
@@ -32,117 +32,123 @@
     }
   },
   "rejected_by_rule": {
-    "R1_EXECUTES": 12,
-    "R2_VOLUME": 21,
-    "R3_MARGIN": 8,
-    "R5_TREND": 36,
-    "R6_DISTINCT": 10,
-    "R7_COVERAGE": 29
+    "R1_EXECUTES": 9,
+    "R2_VOLUME": 41,
+    "R3_MARGIN": 20,
+    "R5_TREND": 39,
+    "R6_DISTINCT": 15,
+    "R7_COVERAGE": 39
   },
   "rejected_examples": {
     "R1_EXECUTES": [
       {
         "params": {
-          "entity": "AD036",
+          "entity": "AD054",
           "level": "ad",
-          "metric": "impressions",
-          "period": "2026-W03"
+          "metric": "link_clicks",
+          "period": "2026-W04"
         },
-        "question": "What was the total impressions for the ad \"Local Radius 10mi | Carousel\" in the week of 12 January 2026 (Monday to Sunday)?",
+        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in the week of 19 January 2026 (Monday to Sunday)?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       },
       {
         "params": {
-          "entity": "AD019",
+          "entity": "AD054",
           "level": "ad",
-          "metric": "cpc",
-          "period": "2026-05"
+          "metric": "conversions",
+          "period": "2026-Q1"
         },
-        "question": "What was the cost per click for the ad \"Women 30-55 Broad | Video\" in May 2026?",
+        "question": "What was the total number of leads for the ad \"Video Viewers | Carousel\" in the first quarter of 2026?",
         "reason": "result contains NULL values",
-        "template": "L_RATIO"
+        "template": "L_TOTAL"
       },
       {
         "params": {
-          "entity": "S17",
-          "level": "ad_set",
-          "metric": "cpl",
-          "period": "2026-W02"
+          "entity": "AD053",
+          "level": "ad",
+          "metric": "impressions",
+          "period": "2026-Q1"
         },
-        "question": "What was the cost per lead for the ad set \"Storm Zip Codes\" in the week of 5 January 2026 (Monday to Sunday)?",
+        "question": "What was the total number of impressions for the ad \"Video Viewers | Image\" in the first quarter of 2026?",
         "reason": "result contains NULL values",
-        "template": "L_RATIO"
+        "template": "L_TOTAL"
       }
     ],
     "R2_VOLUME": [
       {
         "params": {
-          "entity": "AD042",
-          "level": "ad",
-          "metric": "cpl",
-          "period": "2026-W10"
-        },
-        "question": "What was the cost per lead for the ad \"New Movers | Carousel\" in the week of 2 March 2026 (Monday to Sunday)?",
-        "reason": "all: 4 conversions < 20",
-        "template": "L_RATIO"
-      },
-      {
-        "params": {
-          "entity": "AD043",
-          "level": "ad",
-          "metric": "cvr",
-          "period": "2026-W23"
-        },
-        "question": "What was the conversion rate (leads per link click) for the ad \"Lookalike Customers | Video\" in the week of 1 June 2026 (Monday to Sunday)?",
-        "reason": "all: 15 conversions < 20",
-        "template": "L_RATIO"
-      },
-      {
-        "params": {
-          "entity": "AD051",
+          "entity": "AD052",
           "level": "ad",
           "metric": "conversions",
-          "period": "2026-W17"
+          "period": "last30"
         },
-        "question": "What was the average daily leads for the ad \"Storm Zip Codes | Carousel\" in the week of 20 April 2026 (Monday to Sunday)?",
-        "reason": "all: conversions is 0, not > 0",
-        "template": "L_DAILY"
+        "question": "What was the total number of leads for the ad \"Video Viewers | Video\" in the last 30 days?",
+        "reason": "all: 4 conversions < 20",
+        "template": "L_TOTAL"
+      },
+      {
+        "params": {
+          "entity": "AD018",
+          "level": "ad",
+          "metric": "link_clicks",
+          "period": "2026-04"
+        },
+        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in April 2026?",
+        "reason": "all: 75 link_clicks < 100",
+        "template": "L_TOTAL"
+      },
+      {
+        "params": {
+          "entity": "AD008",
+          "level": "ad",
+          "metric": "cpl",
+          "period": "2026-04"
+        },
+        "question": "What was the cost per lead for the ad \"Back Pain Lookalike | Image\" in April 2026?",
+        "reason": "all: 16 conversions < 20",
+        "template": "L_RATIO"
       }
     ],
     "R3_MARGIN": [
       {
         "params": {
-          "attribute": "headline",
-          "direction": "highest",
-          "metric": "cpm",
-          "period": "2026-W17"
-        },
-        "question": "Which headline had the highest cost per thousand impressions in the week of 20 April 2026 (Monday to Sunday)?",
-        "reason": "top 14.2279 vs second 14.1567: margin 0.50% < 5%",
-        "template": "A_ATTR"
-      },
-      {
-        "params": {
-          "attribute": "headline",
-          "direction": "highest",
-          "metric": "spend",
-          "period": "2026-01"
-        },
-        "question": "Which headline had the highest spend in January 2026?",
-        "reason": "top 2371.26 vs second 2366.99: margin 0.18% < 3%",
-        "template": "A_ATTR"
-      },
-      {
-        "params": {
-          "attribute": "status",
           "direction": "lowest",
-          "metric": "spend",
-          "period": "2026-W22"
+          "level": "campaign",
+          "metric": "cpm",
+          "period": "last30",
+          "scope_entity": "A2",
+          "scope_level": "account"
         },
-        "question": "Which status had the lowest spend in the week of 25 May 2026 (Monday to Sunday)?",
-        "reason": "fewer than 2 rows to rank",
-        "template": "A_ATTR"
+        "question": "Which campaign in the account \"Lumen Med Spa\" had the lowest cost per thousand impressions in the last 30 days?",
+        "reason": "top 11.9485 vs second 11.9985: margin 0.42% < 5%",
+        "template": "A_RANK"
+      },
+      {
+        "params": {
+          "direction": "highest",
+          "level": "ad",
+          "metric": "cpm",
+          "period": "whole",
+          "scope_entity": "S06",
+          "scope_level": "ad_set"
+        },
+        "question": "Which ad in the ad set \"Video Viewers\" had the highest cost per thousand impressions in the whole period?",
+        "reason": "top 14.0209 vs second 13.8316: margin 1.37% < 5%",
+        "template": "A_RANK"
+      },
+      {
+        "params": {
+          "direction": "highest",
+          "level": "ad",
+          "metric": "cpm",
+          "period": "2026-Q1",
+          "scope_entity": "S01",
+          "scope_level": "ad_set"
+        },
+        "question": "Which ad in the ad set \"Knee 45-65 Broad\" had the highest cost per thousand impressions in the first quarter of 2026?",
+        "reason": "top 13.9999 vs second 13.9171: margin 0.59% < 5%",
+        "template": "A_RANK"
       }
     ],
     "R5_TREND": [
@@ -186,72 +192,74 @@
     "R6_DISTINCT": [
       {
         "params": {
-          "level": "ad",
-          "metric": "frequency",
-          "parent_entity": "S04",
-          "parent_level": "ad_set",
-          "period": "2026-02"
+          "level": "campaign",
+          "metric": "cpm",
+          "parent_entity": "A1",
+          "parent_level": "account",
+          "period": "whole"
         },
-        "question": "Compare frequency (impressions divided by reach) across the ads in the ad set \"Back Pain Retargeting\" in February 2026.",
-        "reason": "Back Pain Retargeting | Image (1.57555) and Back Pain Retargeting | Video (1.57162) match",
+        "question": "Compare cost per thousand impressions across the campaigns in the account \"Restore Regenerative Clinic\" in the whole period.",
+        "reason": "Back Pain Regenerative (13.9096) and Clinic Awareness (13.9391) match",
         "template": "C_LEVEL"
       },
       {
         "params": {
-          "attribute": "placement",
-          "metric": "cpc",
-          "period": "2026-W19"
+          "level": "ad",
+          "metric": "cpm",
+          "parent_entity": "S10",
+          "parent_level": "ad_set",
+          "period": "whole"
         },
-        "question": "Compare cost per click by placement in the week of 4 May 2026 (Monday to Sunday).",
-        "reason": "advantage_plus (0.690467) and feeds (0.700399) match",
-        "template": "C_ATTR"
+        "question": "Compare cost per thousand impressions across the ads in the ad set \"Retargeting Site\" in the whole period.",
+        "reason": "Retargeting Site | Carousel (12.0758) and Retargeting Site | Image (12.153) match",
+        "template": "C_LEVEL"
       },
       {
         "params": {
-          "attribute": "status",
-          "metric": "cpm",
-          "period": "2026-W06"
+          "level": "campaign",
+          "metric": "link_clicks",
+          "parent_entity": "A3",
+          "parent_level": "account",
+          "period": "2026-05"
         },
-        "question": "Compare cost per thousand impressions by status in the week of 2 February 2026 (Monday to Sunday).",
-        "reason": "active (11.948) and paused (12.0175) match",
-        "template": "C_ATTR"
+        "question": "Compare link clicks across the campaigns in the account \"Northside Home Services\" in May 2026.",
+        "reason": "Roofing Inspection (1616) and Water Heater Replacement (1620) match",
+        "template": "C_LEVEL"
       }
     ],
     "R7_COVERAGE": [
       {
         "params": {
-          "entity": "AD049",
+          "entity": "AD034",
           "level": "ad",
           "metric": "spend",
-          "period": "2026-W14"
+          "period": "2026-Q1"
         },
-        "question": "What was the average daily spend for the ad \"Storm Zip Codes | Video\" in the week of 30 March 2026 (Monday to Sunday)?",
-        "reason": "all: data on 5 of 7 dates",
-        "template": "L_DAILY"
+        "question": "What was the total spend for the ad \"Local Radius 10mi | Video\" in the first quarter of 2026?",
+        "reason": "all: data on 31 of 90 dates",
+        "template": "L_TOTAL"
       },
       {
         "params": {
-          "entity": "AD036",
+          "entity": "AD019",
           "level": "ad",
-          "metric": "impressions",
+          "metric": "conversions",
           "period": "whole"
         },
-        "question": "What was the average daily impressions for the ad \"Local Radius 10mi | Carousel\" in the whole period?",
-        "reason": "all: data on 121 of 180 dates",
-        "template": "L_DAILY"
+        "question": "What was the total number of leads for the ad \"Women 30-55 Broad | Video\" in the whole period?",
+        "reason": "all: data on 74 of 180 dates",
+        "template": "L_TOTAL"
       },
       {
         "params": {
-          "direction": "lowest",
+          "entity": "AD031",
           "level": "ad",
-          "metric": "spend",
-          "period": "whole",
-          "scope_entity": "A2",
-          "scope_level": "account"
+          "metric": "clicks",
+          "period": "whole"
         },
-        "question": "Which ad in the account \"Lumen Med Spa\" had the lowest spend in the whole period?",
-        "reason": "AD036: data on 121 of 180 dates",
-        "template": "A_RANK"
+        "question": "What was the total number of clicks for the ad \"Past Clients | Video\" in the whole period?",
+        "reason": "all: data on 121 of 180 dates",
+        "template": "L_TOTAL"
       }
     ]
   },

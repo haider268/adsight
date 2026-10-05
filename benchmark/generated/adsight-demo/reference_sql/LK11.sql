@@ -1,3 +1,3 @@
-SELECT SUM(f.impressions) AS impressions
+SELECT SUM(f.leads) AS conversions
 FROM daily_ad_metrics f
-WHERE f.date BETWEEN DATE '2026-03-30' AND DATE '2026-04-05';
+WHERE f.date BETWEEN DATE '2026-05-31' AND DATE '2026-06-29';

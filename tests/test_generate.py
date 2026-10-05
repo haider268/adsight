@@ -346,3 +346,101 @@ def test_question_keeps_template_and_params(generated: tuple[Path, GenerateRepor
     first = load_questions(out / "questions.jsonl")[0]
     assert isinstance(first, Question)
     assert first.template is not None and first.params
+
+
+# --- M2g part A: time-varying attributes, volume, period mix, wording ---------------
+
+
+def test_attribute_templates_skip_time_varying(
+    generated: tuple[Path, GenerateReport],
+    demo_model: SemanticModel,
+    demo_con: duckdb.DuckDBPyConnection,
+) -> None:
+    from adsight.generate.templates import a_attr_slots, c_attr_slots
+
+    assert {a.name for a in demo_model.attributes if a.time_varying} == {"audience", "status"}
+    env = build_env(demo_model, demo_con, build_context(demo_model, demo_con))
+    for slots in (a_attr_slots(env), c_attr_slots(env)):
+        assert slots
+        assert {s["attribute"] for s in slots}.isdisjoint({"audience", "status"})
+    out, _ = generated
+    for q in load_questions(out / "questions.jsonl"):
+        assert q.params.get("attribute") not in ("audience", "status"), q.id
+
+
+def test_inspect_flags_state_column_as_time_varying(tmp_path: Path) -> None:
+    con = duckdb.connect(str(tmp_path / "state.duckdb"))
+    try:
+        con.execute(
+            "CREATE TABLE campaigns(campaign_id VARCHAR, campaign_name VARCHAR, "
+            "state VARCHAR, objective VARCHAR)"
+        )
+        con.execute(
+            "INSERT INTO campaigns VALUES ('C1', 'Alpha', 'live', 'leads'), "
+            "('C2', 'Beta', 'stopped', 'traffic')"
+        )
+        con.execute(
+            "CREATE TABLE perf(date DATE, campaign_id VARCHAR, cost DOUBLE, impr BIGINT, "
+            "conversions BIGINT)"
+        )
+        con.execute(
+            "INSERT INTO perf VALUES (DATE '2026-01-01', 'C1', 1.0, 100, 1), "
+            "(DATE '2026-01-02', 'C2', 1.0, 100, 1)"
+        )
+        model, notes = draft_model(con, "state")
+    finally:
+        con.close()
+    flags = {a.name: a.time_varying for a in model.attributes}
+    assert flags == {"state": True, "objective": False}
+    assert any("state" in n and "time-varying" in n for n in notes)
+
+
+def test_generated_volume_minimums(
+    generated: tuple[Path, GenerateReport], demo_con: duckdb.DuckDBPyConnection
+) -> None:
+    out, _ = generated
+    for q in load_questions(out / "questions.jsonl"):
+        if q.expected is None or q.params.get("metric") != "conversions":
+            continue
+        if q.category == "lookup":
+            (value,) = q.expected.values.values()
+            minimum = 1 if q.template == "L_DAILY" else 20
+            assert value >= minimum, (q.id, value)
+        if q.category == "trend":
+            assert q.reference_sql is not None
+            sql = (out / "reference_sql" / q.reference_sql).read_text(encoding="utf-8")
+            points = [float(r[1]) for r in demo_con.execute(sql).fetchall()]
+            assert min(points) >= 10, (q.id, points)
+
+
+def test_week_periods_at_most_30_percent(generated: tuple[Path, GenerateReport]) -> None:
+    out, _ = generated
+    questions = load_questions(out / "questions.jsonl")
+    for category in ("lookup", "aggregation", "comparison"):
+        period_based = [q for q in questions if q.category == category and "period" in q.params]
+        weeks = [q for q in period_based if "-W" in q.params["period"]]
+        assert len(weeks) <= int(0.3 * len(period_based)), (category, len(weeks), len(period_based))
+
+
+def test_wording_forms(demo_model: SemanticModel, demo_con: duckdb.DuckDBPyConnection) -> None:
+    from adsight.generate.templates import build_candidate
+
+    env = build_env(demo_model, demo_con, build_context(demo_model, demo_con))
+    total = build_candidate(
+        env,
+        "L_TOTAL",
+        {"metric": "conversions", "level": "account", "entity": "A1", "period": "2026-03"},
+    )
+    assert total.question.startswith("What was the total number of leads for the account")
+    daily = build_candidate(
+        env,
+        "L_DAILY",
+        {"metric": "clicks", "level": "account", "entity": "A1", "period": "2026-03"},
+    )
+    assert daily.question.startswith("What was the average number of clicks per day for")
+    ranked = build_candidate(
+        env,
+        "A_RANK",
+        {"metric": "conversions", "level": "ad", "direction": "lowest", "period": "2026-04"},
+    )
+    assert ranked.question == "Which ad had the fewest leads in April 2026?"
