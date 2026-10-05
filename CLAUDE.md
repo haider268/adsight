@@ -13,14 +13,11 @@ uv sync                       # create .venv and install everything
 uv run adsight data           # build data/adsight.duckdb + data/manifest.json
 uv run adsight bench refs     # check the gold set's expected answers against its SQL
 uv run adsight bench generate # write benchmark/generated/adsight-demo/
+uv run adsight bench review benchmark/generated/adsight-demo   # pending root causes
 uv run adsight semantic check semantic/demo.yaml   # mapping fits the database
-uv run pytest                 # offline test suite with coverage
-uv run ruff check             # lint
-uv run ruff format --check    # formatting
-uv run mypy src               # strict type check
+uv run pytest                 # offline tests; /check also runs ruff check,
+                              # ruff format --check and mypy src
 ```
-
-`/check` runs the last four in order.
 
 ## Layout
 
@@ -44,8 +41,7 @@ uv run mypy src               # strict type check
 - RNG rule: every ad-day draws from its own `random.Random(f"{seed}:{ad_id}:{day}")`,
   so adding an event changes only the ad-days that event affects.
 - State comes from events; add an event, never edit the generator, to change history.
-- Learning profiles: an audience edit restarts learning harder than a launch or a
-  budget change.
+- Learning profiles: an audience edit restarts learning harder than a launch or budget change.
 - `adsight data [--seed N] [--data-dir DIR]` writes `adsight.duckdb` and `manifest.json`
   (defaults: `ADSIGHT_SEED` or 7, `ADSIGHT_DATA_DIR` or `data`). `data/` is git-ignored.
 
@@ -64,21 +60,18 @@ is measured from the generated data into `manifest.json`, never asserted by hand
 ## Benchmark contract
 
 - Defined on seed 7. `BENCHMARK_TODAY` is 2026-06-30; data covers 2026-01-01 to 2026-06-29.
-- Gold set: 100 questions (lookup 15, aggregation 15, comparison 15, trend 15,
-  root_cause 20, ambiguous 10, unanswerable 10).
-- `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`
-  (label + value), `entities` (best first), `direction` (up / down / flat), `assumptions`,
-  `sql` (informational only).
-- Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0001); a
-  ratio may also be given as a percent. Matching is one-to-one (maximum bipartite).
-- numeric / numeric_set: kind answer, every expected value matched by an answer value.
-- entity: kind answer, first entity equals the expected id or name (case-insensitive).
-- trend: kind answer, direction right, and both first and last values matched.
-- root_cause: kind answer and every required regex matches the summary. Ground truth is
-  `incident_ids` (their manifest causes joined) or a `reference_summary`. Invented causes
-  are judged later by an LLM, not by regex.
-- clarify: kind clarify, or kind answer with at least one stated assumption.
-- refuse: kind cannot_answer with no values.
+- Gold set: 100 questions (15 each of lookup, aggregation, comparison, trend; 20
+  root_cause; 10 each of ambiguous, unanswerable).
+- `AgentAnswer`: `kind` (answer / clarify / cannot_answer), `summary`, `values`, `entities`
+  (best first), `direction` (up / down / flat), `assumptions`, `sql` (informational).
+- Matching: within 1% or a floor (usd 0.01, count 0.5, number 0.01, ratio 0.0001), ratios
+  also as percents, one-to-one. numeric / numeric_set: every expected value matched.
+  entity: first entity is the expected id or name. trend: right direction, first and last
+  matched. clarify: kind clarify, or an answer with a stated assumption. refuse: kind
+  cannot_answer with no values.
+- root_cause: every required regex matches the summary. Ground truth is `incident_ids`
+  (manifest causes joined) or a `reference_summary`. Invented causes are judged later by
+  an LLM, not by regex.
 - Expected values come only from reference SQL (`bench refs --write` or the generator);
   never type them by hand.
 
@@ -106,7 +99,7 @@ is measured from the generated data into `manifest.json`, never asserted by hand
   reads any database through its semantic model and writes questions, reference SQL,
   expected answers, `context.json` and `lint_report.json`. Same seed, same bytes.
 - Targets: lookup 15, aggregation 15, comparison 15, trend 15 (5 up, 5 down, 5 flat),
-  root_cause 0 (later step), ambiguous 10, unanswerable 10.
+  root_cause 20, ambiguous 10, unanswerable 10 (100 questions).
 - Templates: lookup L_TOTAL, L_RATIO, L_ALL, L_DAILY; aggregation A_RANK, A_ATTR,
   A_MONTH, A_WEEKDAY; comparison C_LEVEL, C_ATTR, C_MONTHS; trend T_WEEKLY, T_MONTHLY.
   Ambiguous phrasings and unanswerable probes are offered only when the data allows.
@@ -127,6 +120,22 @@ is measured from the generated data into `manifest.json`, never asserted by hand
   - R8_DUPLICATE: no repeated (template, params).
 - The gold set (benchmark/questions.jsonl) is a test fixture, never the published
   benchmark.
+
+## Root-cause generation
+
+- Event first: weekly cost per lead is so noisy that 38 ad-set week-on-week jumps above
+  30% exist on the demo and only 3 come from real changes. So questions never start from
+  a jump; they start from a logged material change with a measured effect, or from a
+  strict detector. Routine changes are never causes, only decoys.
+- Material: paused, audience_edit, any other change except launched, or a budget change
+  of |new/old - 1| >= 20% with a CPL effect of >= 15% on its scope.
+- Detectors: tracking (account conversions fall to <= 15% of baseline while clicks hold,
+  2+ days); fatigue (frequency >= 2 and up 0.5+ while CTR falls to <= 70%, no logged
+  change); calendar (monthly spend differs only by month length); noise (conversions
+  move 40%+ while spend and clicks stay within 7%, nothing else nearby).
+- Tracking, fatigue and noise questions are written with `review: pending`; `adsight
+  bench review <dir> [--approve ID ...] [--reject ID ...]` lists or decides them.
+- The published benchmark is the effective set (review None or approved).
 
 ## Rules
 

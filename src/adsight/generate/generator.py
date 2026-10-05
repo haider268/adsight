@@ -15,6 +15,7 @@ import duckdb
 
 from adsight.benchmark.questions import PREFIX_BY_CATEGORY, Question, save_questions
 from adsight.benchmark.refs import compute_expected
+from adsight.generate.causes import DECOY_WINDOW_DAYS, Cause, detect_causes
 from adsight.generate.context import build_context, write_context
 from adsight.generate.lint import lint
 from adsight.generate.templates import (
@@ -27,6 +28,7 @@ from adsight.generate.templates import (
     ambiguous_phrasings,
     available_probes,
     build_env,
+    root_cause_candidates,
     unanswerable_candidate,
 )
 from adsight.semantic.model import SemanticModel
@@ -36,11 +38,19 @@ TARGETS: dict[str, int] = {
     "aggregation": 15,
     "comparison": 15,
     "trend": 15,
-    "root_cause": 0,
+    "root_cause": 20,
     "ambiguous": 10,
     "unanswerable": 10,
 }
-OUTPUT_ORDER = ("lookup", "aggregation", "comparison", "trend", "ambiguous", "unanswerable")
+OUTPUT_ORDER = (
+    "lookup",
+    "aggregation",
+    "comparison",
+    "trend",
+    "root_cause",
+    "ambiguous",
+    "unanswerable",
+)
 MAX_LINTED_PER_TEMPLATE = 60
 MAX_TEMPLATE_SHARE = 0.40
 TREND_PER_DIRECTION = 5
@@ -49,6 +59,9 @@ MAX_EXAMPLES_PER_RULE = 3
 DIRECTIONS = ("up", "down", "flat")
 PERIOD_KIND_ORDER = ("month", "quarter", "last30", "whole", "week")
 MAX_WEEK_SHARE = 0.30  # of a category's period-based questions, rounded down
+MAX_FATIGUE_QUESTIONS = 3
+MAX_CALENDAR_FIRST_PASS = 2
+MAX_NOISE_FIRST_PASS = 4
 
 
 @dataclass
@@ -60,9 +73,11 @@ class GenerateReport:
     trend_directions: dict[str, int] = field(default_factory=dict)
     shortfalls: list[str] = field(default_factory=list)
     rejected_examples: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    root_cause: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         return {
+            "root_cause": self.root_cause,
             "candidates_evaluated": self.candidates_evaluated,
             "accepted": self.accepted,
             "rejected_by_rule": self.rejected_by_rule,
@@ -187,6 +202,66 @@ def _week_share_ok(env: Env, cand: Candidate, chosen: list[Candidate]) -> bool:
     return weeks <= math.floor(MAX_WEEK_SHARE * period_based)
 
 
+def select_root_causes(
+    candidates: list[Candidate], causes: list[Cause], seed: int, target: int
+) -> list[Candidate]:
+    """Pick root-cause questions in order of preference, at most one per (cause, angle):
+    logged causes first, then tracking, fatigue (capped), calendar and noise (capped), then
+    leftovers round-robin by kind with only the fatigue cap still applying."""
+    by_cause: dict[str, dict[str, Candidate]] = {}
+    for cand in candidates:
+        by_cause.setdefault(cand.params["cause_id"], {})[cand.params["angle"]] = cand
+    kinds: dict[str, list[str]] = {}
+    for cause in causes:
+        if cause.cause_id in by_cause:
+            kinds.setdefault(cause.kind, []).append(cause.cause_id)
+    for kind, ids in kinds.items():
+        random.Random(f"{seed}:RC:{kind}").shuffle(ids)
+
+    chosen: list[Candidate] = []
+    taken: set[tuple[str, str]] = set()
+
+    def take(cause_id: str, angle: str) -> None:
+        cand = by_cause.get(cause_id, {}).get(angle)
+        if cand is not None and (cause_id, angle) not in taken and len(chosen) < target:
+            chosen.append(cand)
+            taken.add((cause_id, angle))
+
+    for angle in ("RC_SCOPE", "RC_DECOY", "RC_PARENT", "RC_SPEND"):
+        for cause_id in kinds.get("logged", []):
+            take(cause_id, angle)
+    for angle in ("RC_TRACK", "RC_TRACK_CHILD", "RC_TRACK_DECOY"):
+        for cause_id in kinds.get("tracking", []):
+            take(cause_id, angle)
+    for cause_id in kinds.get("fatigue", [])[:MAX_FATIGUE_QUESTIONS]:
+        take(cause_id, "RC_FATIGUE")
+    for cause_id in kinds.get("calendar", [])[:MAX_CALENDAR_FIRST_PASS]:
+        take(cause_id, "RC_CALENDAR")
+    for cause_id in kinds.get("noise", [])[:MAX_NOISE_FIRST_PASS]:
+        take(cause_id, "RC_NOISE")
+
+    leftovers = {
+        kind: [
+            (cause_id, angle)
+            for cause_id in ids
+            for angle in by_cause[cause_id]
+            if (cause_id, angle) not in taken
+        ]
+        for kind, ids in kinds.items()
+    }
+    progress = True
+    while len(chosen) < target and progress:
+        progress = False
+        for kind in ("logged", "tracking", "fatigue", "calendar", "noise"):
+            pool = leftovers.get(kind, [])
+            fatigue_used = sum(1 for c in chosen if c.params["kind"] == "fatigue")
+            if not pool or (kind == "fatigue" and fatigue_used >= MAX_FATIGUE_QUESTIONS):
+                continue
+            take(*pool.pop(0))
+            progress = True
+    return chosen
+
+
 def _enough(category: str, accepted: list[Candidate], directions: dict[int, str]) -> bool:
     if category != "trend":
         return len(accepted) >= TARGETS[category]
@@ -252,7 +327,34 @@ def generate_benchmark(
         _round_robin(pools, order, target, chosen, lambda c, chosen: True)
         selected[category] = chosen
 
-    # 3. ambiguous and unanswerable: seeded picks from what this dataset allows
+    # 3. root cause: questions built from detected causes, never from raw jumps
+    detection = detect_causes(env, con)
+    rc_candidates = [
+        c
+        for c in root_cause_candidates(env, detection.causes, detection.decoys, DECOY_WINDOW_DAYS)
+        if linter.check(c, ctx)
+    ]
+    selected["root_cause"] = select_root_causes(
+        rc_candidates, detection.causes, seed, TARGETS["root_cause"]
+    )
+    rc = selected["root_cause"]
+    report.root_cause = {
+        "causes_detected": {
+            kind: sum(1 for c in detection.causes if c.kind == kind)
+            for kind in ("logged", "tracking", "fatigue", "calendar", "noise")
+        },
+        "by_kind": {
+            kind: sum(1 for c in rc if c.params["kind"] == kind)
+            for kind in ("logged", "tracking", "fatigue", "calendar", "noise")
+        },
+        "by_angle": {
+            angle: sum(1 for c in rc if c.template == angle)
+            for angle in sorted({c.template for c in rc_candidates})
+        },
+        "pending_review": sum(1 for c in rc if c.review == "pending"),
+    }
+
+    # 4. ambiguous and unanswerable: seeded picks from what this dataset allows
     phrasings = ambiguous_phrasings(env)
     picked = random.Random(f"{seed}:AMBIGUOUS").sample(
         phrasings, min(TARGETS["ambiguous"], len(phrasings))
@@ -277,7 +379,7 @@ def generate_benchmark(
         d: sum(1 for c in selected.get("trend", []) if directions[id(c)] == d) for d in DIRECTIONS
     }
 
-    # 4. write the artefacts
+    # 5. write the artefacts
     out_dir.mkdir(parents=True, exist_ok=True)
     sql_dir = out_dir / "reference_sql"
     sql_dir.mkdir(exist_ok=True)
@@ -301,6 +403,7 @@ def generate_benchmark(
                     "notes": cand.notes,
                     "template": cand.template,
                     "params": cand.params,
+                    "review": cand.review,
                 }
             )
             if sql_file is not None:

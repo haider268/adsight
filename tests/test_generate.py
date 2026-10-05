@@ -1,6 +1,5 @@
-import random
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -24,6 +23,8 @@ from adsight.generate.templates import (
 from adsight.semantic.inspect import draft_model
 from adsight.semantic.model import SemanticModel, dump_model, load_model
 
+MakeFlat = Callable[..., None]
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEMO_YAML = REPO_ROOT / "semantic" / "demo.yaml"
 ARTEFACTS = ("questions.jsonl", "context.json", "lint_report.json")
@@ -32,44 +33,6 @@ runner = CliRunner()
 
 
 # --- fixtures ----------------------------------------------------------------
-
-
-def _flat_rows() -> list[tuple[object, ...]]:
-    rng = random.Random(1)
-    rows: list[tuple[object, ...]] = []
-    for c, name in enumerate(("Alpha", "Beta", "Gamma"), start=1):
-        for g in (1, 2):
-            for w in range(30):
-                impr = rng.randint(15000, 30000)
-                clicks = round(impr * rng.uniform(0.01, 0.02))
-                conversions = round(clicks * rng.uniform(0.03, 0.08))
-                rows.append(
-                    (
-                        date(2026, 1, 5) + timedelta(days=7 * w),
-                        f"C{c}",
-                        name,
-                        f"C{c}-G{g}",
-                        rng.uniform(200, 400),
-                        impr,
-                        clicks,
-                        conversions,
-                    )
-                )
-    return rows
-
-
-def _make_flat(path: Path, extra_revenue: bool = False) -> None:
-    con = duckdb.connect(str(path))
-    try:
-        con.execute(
-            "CREATE TABLE perf(week_start DATE, campaign_id VARCHAR, campaign_name VARCHAR, "
-            "ad_group VARCHAR, cost DOUBLE, impr BIGINT, clicks BIGINT, conversions BIGINT)"
-        )
-        con.executemany("INSERT INTO perf VALUES (?, ?, ?, ?, ?, ?, ?, ?)", _flat_rows())
-        if extra_revenue:
-            con.execute("ALTER TABLE perf ADD COLUMN revenue DOUBLE")
-    finally:
-        con.close()
 
 
 @pytest.fixture(scope="module")
@@ -100,9 +63,9 @@ def generated(
 
 
 @pytest.fixture(scope="module")
-def flat_db(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def flat_db(tmp_path_factory: pytest.TempPathFactory, make_flat_db: MakeFlat) -> Path:
     path = tmp_path_factory.mktemp("flatgen") / "flat.duckdb"
-    _make_flat(path)
+    make_flat_db(path)
     return path
 
 
@@ -134,18 +97,19 @@ def flat_generated(
 def test_demo_shape(generated: tuple[Path, GenerateReport]) -> None:
     out, report = generated
     questions = load_questions(out / "questions.jsonl")
-    assert len(questions) == 80
+    assert len(questions) == 100
     assert Counter(q.category for q in questions) == {
         "lookup": 15,
         "aggregation": 15,
         "comparison": 15,
         "trend": 15,
+        "root_cause": 20,
         "ambiguous": 10,
         "unanswerable": 10,
     }
-    assert report.per_category["root_cause"] == {"target": 0, "selected": 0}
+    assert report.per_category["root_cause"] == {"target": 20, "selected": 20}
     prefixes = [q.id[:2] for q in questions]
-    assert prefixes == sorted(prefixes, key=["LK", "AG", "CP", "TR", "AM", "UN"].index)
+    assert prefixes == sorted(prefixes, key=["LK", "AG", "CP", "TR", "RC", "AM", "UN"].index)
     assert all(q.template for q in questions)
     for q in questions:
         if q.reference_sql is not None:
@@ -277,9 +241,9 @@ def test_demo_probes_match_no_column(
             assert not any(w in col for w in probe_words for col in env.columns), q.params
 
 
-def test_revenue_column_removes_revenue_probes(tmp_path: Path) -> None:
+def test_revenue_column_removes_revenue_probes(tmp_path: Path, make_flat_db: MakeFlat) -> None:
     path = tmp_path / "flat_rev.duckdb"
-    _make_flat(path, extra_revenue=True)
+    make_flat_db(path, extra_revenue=True)
     con = open_readonly(path)
     try:
         model = draft_model(con, "flat")[0]

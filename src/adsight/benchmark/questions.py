@@ -131,6 +131,7 @@ class Question(_Frozen):
     notes: str = ""
     template: str | None = None  # the generator template that made it, if any
     params: dict[str, str] = {}  # that template's slot values
+    review: Literal["pending", "approved", "rejected"] | None = None  # None: no review needed
 
     @model_validator(mode="after")
     def _consistent(self) -> "Question":
@@ -167,6 +168,11 @@ def load_questions(path: Path) -> list[Question]:
         seen.add(question.id)
         questions.append(question)
     return questions
+
+
+def effective_questions(questions: list[Question]) -> list[Question]:
+    """The questions a benchmark run uses: no review needed, or approved by a human."""
+    return [q for q in questions if q.review in (None, "approved")]
 
 
 def _dump(question: Question) -> dict[str, object]:

@@ -5,11 +5,12 @@ column names, so the same templates work on any dataset with a semantic model. M
 values are left unrounded: rounding is the scorer's job.
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from itertools import pairwise
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import duckdb
 
@@ -37,6 +38,9 @@ from adsight.semantic.inspect import normalise
 from adsight.semantic.metrics import METRICS, available_metrics, sql_expr
 from adsight.semantic.model import SemanticModel
 from adsight.semantic.sql import attribute_col, date_col, from_clause, level_key, level_label
+
+if TYPE_CHECKING:  # causes.py imports this module, so only import its types for checking
+    from adsight.generate.causes import Cause, Change
 
 LintKind = Literal["lookup", "aggregation", "comparison", "trend"]
 Params = dict[str, str]
@@ -69,6 +73,7 @@ class Candidate:
     sql: str | None = None
     notes: str = ""
     spec: LintSpec | None = None
+    review: str | None = None  # "pending" when a human must confirm the cause
 
 
 @dataclass
@@ -982,6 +987,281 @@ def unanswerable_candidate(env: Env, probe: Probe) -> Candidate:
         scoring={"type": "refuse", "reason": probe.reason(env)},
         params={"probe": probe.concept},
     )
+
+
+# --- root cause ----------------------------------------------------------------
+
+PAUSE_RE = "paus|turned off|switched off|stopped"
+BUDG_RE = "budget"
+FAT_RE = "frequen|fatigue|saturat|same (people|users|audience)|wear"
+TRK_RE = "tracking|pixel|measurement|conversion api|capi"
+NOISE_RE = (
+    "variation|fluctuat|noise|random|chance|conversion rate|lead rate|"
+    "leads per (link )?click|share of clicks"
+)
+CAL_RE = "fewer days|more days|shorter|longer|days in|month length|per day|daily spend"
+ACCOUNT_WIDE_RE = "|account|all (the )?campaigns|account-wide|across the account"
+
+
+def entity_regex(key: str, label: str) -> str:
+    return re.escape(key) + "|" + re.escape(label)
+
+
+def _n(value: float | str) -> str:
+    """Numbers to 2 dp; whole numbers without decimals."""
+    x = float(value)
+    return str(int(x)) if x.is_integer() else f"{x:.2f}"
+
+
+def _r(value: float | str) -> str:
+    """Ratios to 4 dp."""
+    return f"{float(value):.4f}"
+
+
+def _dates_text(days: list[date]) -> str:
+    """'8 and 9 June 2026', or full dates when the months differ."""
+    if len({(d.year, d.month) for d in days}) == 1:
+        nums = [str(d.day) for d in days]
+        joined = nums[0] if len(nums) == 1 else ", ".join(nums[:-1]) + " and " + nums[-1]
+        return f"{joined} {day_text(days[0]).split(' ', 1)[1]}"
+    texts = [day_text(d) for d in days]
+    return ", ".join(texts[:-1]) + " and " + texts[-1]
+
+
+def _capital(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def _window_text(cause: "Cause") -> str:
+    return "week" if cause.evidence.get("change_type") == "audience_edit" else "two weeks"
+
+
+def logged_required(cause: "Cause", include_changed_entity: bool = False) -> list[str]:
+    ev = cause.evidence
+    ctype = str(ev["change_type"])
+    changed = entity_regex(cause.entity_key, cause.entity_label)
+    scope = entity_regex(cause.scope_key, cause.scope_label)
+    if ctype == "paused":
+        return [changed, PAUSE_RE]
+    if ctype == "budget_change":
+        new = re.escape(str(ev["new"]))
+        lower = float(str(ev["new"])) < float(str(ev["old"]))
+        words = f"cut|lower|reduc|decreas|{new}" if lower else f"increas|rais|doubl|higher|{new}"
+        required = [BUDG_RE, words]
+    elif ctype == "audience_edit":
+        old, new = re.escape(str(ev["old"])), re.escape(str(ev["new"]))
+        required = [scope, f"audience|targeting|{new}|{old}"]
+    else:
+        required = [scope, ctype.replace("_", " ")]
+    if include_changed_entity:
+        required.append(changed)
+    return required
+
+
+def logged_summary(cause: "Cause", conv: str) -> str:
+    ev = cause.evidence
+    ctype = str(ev["change_type"])
+    when = day_text(cause.start)
+    before, after = _n(ev["cpl_before"]), _n(ev["cpl_after"])
+    if ctype == "paused":
+        share = _n(float(ev["paused_share"]) * 100)
+        return (
+            f"{cause.entity_label} ({cause.entity_key}) was paused on {when} (logged change). "
+            f"It had carried {share}% of {cause.scope_label}'s spend in the two weeks before; "
+            f"its budget moved to the remaining ads, and cost per {conv} for "
+            f"{cause.scope_label} went from {before} to {after}."
+        )
+    if ctype == "budget_change":
+        s0, s1 = _n(ev["spend_per_day_before"]), _n(ev["spend_per_day_after"])
+        return (
+            f"{cause.scope_label} ({cause.scope_key}) had its daily budget changed from "
+            f"{ev['old']} to {ev['new']} on {when} (logged change). Its spend went from {s0} "
+            f"to {s1} a day and cost per {conv} from {before} to {after} in the two weeks after."
+        )
+    if ctype == "audience_edit":
+        return (
+            f"{cause.scope_label} ({cause.scope_key}) had its audience changed from "
+            f"{ev['old']} to {ev['new']} on {when} (logged change), which restarted learning; "
+            f"cost per {conv} went from {before} to {after} in the week after."
+        )
+    return (
+        f"{ctype} on {cause.entity_label} ({cause.entity_key}) on {when} (logged change); "
+        f"cost per {conv} for {cause.scope_label} went from {before} to {after}."
+    )
+
+
+def _rc_candidate(
+    cause: "Cause", angle: str, question: str, required: list[str], summary: str
+) -> Candidate:
+    return Candidate(
+        template=angle,
+        category="root_cause",
+        question=question,
+        scoring={
+            "type": "root_cause",
+            "incident_ids": [],
+            "reference_summary": summary,
+            "required": required,
+            "forbidden": [],
+        },
+        params={
+            "cause_id": cause.cause_id,
+            "angle": angle,
+            "kind": cause.kind,
+            "entity": cause.entity_key,
+            "date": cause.start.isoformat(),
+        },
+        review="pending" if cause.needs_review else None,
+    )
+
+
+def _ancestor_key(env: Env, level: str, key: str, wanted: str) -> str | None:
+    if level == wanted:
+        return key
+    return env.parent_of[level].get(key, {}).get(wanted)
+
+
+def _decoy_for(
+    env: Env, cause: "Cause", decoys: list["Change"], window_days: int
+) -> "Change | None":
+    """The latest non-material change in the `window_days` before the cause, in the same
+    parent entity if possible, else in the same top-level entity."""
+    names = env.levels()
+    top = names[0]
+    scope_top = _ancestor_key(env, cause.scope_level, cause.scope_key, top)
+    i = names.index(cause.scope_level)
+    parent_level = names[i - 1] if i > 0 else None
+    scope_parent = (
+        _ancestor_key(env, cause.scope_level, cause.scope_key, parent_level)
+        if parent_level
+        else None
+    )
+    in_window = [
+        d
+        for d in decoys
+        if cause.start - timedelta(days=window_days) <= d.day < cause.start
+        and _ancestor_key(env, d.level, d.key, top) == scope_top
+    ]
+    same_parent = [
+        d
+        for d in in_window
+        if parent_level and _ancestor_key(env, d.level, d.key, parent_level) == scope_parent
+    ]
+    pool = same_parent or in_window
+    return max(pool, key=lambda d: (d.day, d.key)) if pool else None
+
+
+def root_cause_candidates(
+    env: Env, causes: list["Cause"], decoys: list["Change"], decoy_window_days: int
+) -> list[Candidate]:
+    """Every question angle each cause supports, in cause order."""
+    conv, plural = env.ctx.conversion_name, env.ctx.conversion_plural
+    out: list[Candidate] = []
+    for cause in causes:
+        ev = cause.evidence
+        scope_text = entity_text(cause.scope_level, cause.scope_label)
+        if cause.kind == "logged":
+            summary = logged_summary(cause, conv)
+            window = _window_text(cause)
+            when = day_text(cause.start)
+            question = f"Why did cost per {conv} rise for {scope_text} in the {window} from {when}?"
+            out.append(_rc_candidate(cause, "RC_SCOPE", question, logged_required(cause), summary))
+            decoy = _decoy_for(env, cause, decoys, decoy_window_days)
+            if decoy is not None:
+                question = (
+                    f"Was the {decoy.describe()} on {entity_text(decoy.level, decoy.label)} on "
+                    f"{day_text(decoy.day)} the reason cost per {conv} rose for {scope_text} in "
+                    f"the {window} from {when}?"
+                )
+                out.append(
+                    _rc_candidate(cause, "RC_DECOY", question, logged_required(cause), summary)
+                )
+            parent_text = None
+            if "parent_key" in ev:
+                plevel, pkey = str(ev["parent_level"]), str(ev["parent_key"])
+                parent_text = entity_text(plevel, env.label(plevel, pkey))
+                question = (
+                    f"Why did cost per {conv} rise for {parent_text} in the {window} from {when}?"
+                )
+                with_changed = ev["change_type"] != "paused"
+                required = logged_required(cause, include_changed_entity=with_changed)
+                out.append(_rc_candidate(cause, "RC_PARENT", question, required, summary))
+            if "spend_jump" in ev:
+                question = f"Why did spend for {parent_text or scope_text} jump from {when}?"
+                required = [entity_regex(cause.entity_key, cause.entity_label), BUDG_RE]
+                out.append(_rc_candidate(cause, "RC_SPEND", question, required, summary))
+        elif cause.kind == "tracking":
+            days = [date.fromisoformat(d) for d in str(ev["dates"]).split(",")]
+            dates = _dates_text(days)
+            entity = entity_text(cause.entity_level, cause.entity_label)
+            summary = (
+                f"{_capital(plural)} for {cause.entity_label} fell to {_n(ev['conversions'])} "
+                f"on {dates} while clicks stayed at about {_n(ev['clicks_per_step'])} a "
+                f"{env.ctx.grain}, and no change was logged. This pattern points to broken "
+                "conversion tracking."
+            )
+            question = f"Why did {entity} record almost no {plural} on {dates}?"
+            out.append(_rc_candidate(cause, "RC_TRACK", question, [TRK_RE, "click"], summary))
+            if "child_key" in ev:
+                clevel, ckey = str(ev["child_level"]), str(ev["child_key"])
+                child_text = _capital(entity_text(clevel, env.label(clevel, ckey)))
+                question = (
+                    f"{child_text} got almost no {plural} on {dates}. Was the budget the problem?"
+                )
+                required = [
+                    TRK_RE,
+                    entity_regex(cause.entity_key, cause.entity_label) + ACCOUNT_WIDE_RE,
+                ]
+                out.append(_rc_candidate(cause, "RC_TRACK_CHILD", question, required, summary))
+            decoy = _decoy_for(env, cause, decoys, decoy_window_days)
+            if decoy is not None:
+                question = (
+                    f"Did the {decoy.describe()} on {entity_text(decoy.level, decoy.label)} on "
+                    f"{day_text(decoy.day)} cause the drop in {plural} on {dates}?"
+                )
+                out.append(_rc_candidate(cause, "RC_TRACK_DECOY", question, [TRK_RE], summary))
+        elif cause.kind == "fatigue":
+            entity = entity_text(cause.entity_level, cause.entity_label)
+            summary = (
+                f"No change was logged for {cause.entity_label} ({cause.entity_key}). Its "
+                f"frequency rose from {_n(ev['f0'])} to {_n(ev['f1'])} while its click-through "
+                f"rate fell from {_r(ev['c0'])} to {_r(ev['c1'])}: the same people saw it too "
+                "often (creative fatigue)."
+            )
+            question = (
+                f"Why did the click-through rate of {entity} fall between "
+                f"{day_text(cause.start)} and {day_text(cause.end)}?"
+            )
+            required = [entity_regex(cause.entity_key, cause.entity_label), FAT_RE]
+            out.append(_rc_candidate(cause, "RC_FATIGUE", question, required, summary))
+        elif cause.kind == "calendar":
+            entity = entity_text(cause.entity_level, cause.entity_label)
+            more = float(ev["total2"]) > float(ev["total1"])
+            summary = (
+                f"Nothing changed: {ev['month2']} has {_n(ev['days2'])} days and {ev['month1']} "
+                f"has {_n(ev['days1'])}. Spend per day was about the same ({_n(ev['daily1'])} "
+                f"and {_n(ev['daily2'])}), so the monthly total differed only because of the "
+                "month length."
+            )
+            question = (
+                f"Why did {entity} spend {'more' if more else 'less'} in {ev['month2']} than in "
+                f"{ev['month1']}?"
+            )
+            out.append(_rc_candidate(cause, "RC_CALENDAR", question, [CAL_RE], summary))
+        elif cause.kind == "noise":
+            entity = entity_text(cause.entity_level, cause.entity_label)
+            summary = (
+                f"No change was logged or detected; spend and clicks were flat ({_n(ev['s0'])} "
+                f"to {_n(ev['s1'])} and {_n(ev['k0'])} to {_n(ev['k1'])}). Only the share of "
+                f"clicks that became {plural} moved ({_r(ev['r0'])} to {_r(ev['r1'])}), which "
+                "is normal week-to-week variation."
+            )
+            question = (
+                f"Why did {plural} for {entity} {ev['direction']} in the week of "
+                f"{day_text(cause.start)}?"
+            )
+            out.append(_rc_candidate(cause, "RC_NOISE", question, [NOISE_RE], summary))
+    return out
 
 
 # --- registry ----------------------------------------------------------------

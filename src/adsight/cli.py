@@ -348,5 +348,53 @@ def generate(
         raise typer.Exit(1)
 
 
+@bench_app.command()
+def review(
+    folder: Annotated[Path, typer.Argument(help="Benchmark folder holding questions.jsonl.")],
+    approve: Annotated[
+        list[str] | None, typer.Option("--approve", help="Question id to approve.")
+    ] = None,
+    reject: Annotated[
+        list[str] | None, typer.Option("--reject", help="Question id to reject.")
+    ] = None,
+) -> None:
+    """List questions pending human review, or approve / reject them by id."""
+    from adsight.benchmark.questions import load_questions, save_questions
+
+    path = folder / "questions.jsonl"
+    questions = load_questions(path)
+    decisions = {qid: "approved" for qid in approve or []} | {
+        qid: "rejected" for qid in reject or []
+    }
+    if not decisions:
+        pending = [q for q in questions if q.review == "pending"]
+        table = Table(title=f"{len(pending)} questions pending review in {path}")
+        for column in ("id", "question", "reference_summary"):
+            table.add_column(column)
+        for q in pending:
+            summary = getattr(q.scoring, "reference_summary", None) or ""
+            table.add_row(q.id, q.question, summary)
+        console.print(table)
+        return
+    by_id = {q.id: q for q in questions}
+    for qid in decisions:
+        if qid not in by_id:
+            err_console.print(f"unknown question id {qid}")
+            raise typer.Exit(1)
+        if by_id[qid].review != "pending":
+            err_console.print(f"{qid} is not pending review (review={by_id[qid].review})")
+            raise typer.Exit(1)
+    updated = [
+        q.model_copy(update={"review": decisions[q.id]}) if q.id in decisions else q
+        for q in questions
+    ]
+    save_questions(updated, path)
+    counts = {
+        state: sum(1 for q in updated if q.review == state)
+        for state in ("pending", "approved", "rejected")
+    }
+    console.print(", ".join(f"{state} {n}" for state, n in counts.items()))
+
+
 def main() -> None:
     app()

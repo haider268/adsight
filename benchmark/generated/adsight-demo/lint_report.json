@@ -1,6 +1,6 @@
 {
-  "accepted": 212,
-  "candidates_evaluated": 375,
+  "accepted": 246,
+  "candidates_evaluated": 409,
   "per_category": {
     "aggregation": {
       "selected": 15,
@@ -19,8 +19,8 @@
       "target": 15
     },
     "root_cause": {
-      "selected": 0,
-      "target": 0
+      "selected": 20,
+      "target": 20
     },
     "trend": {
       "selected": 15,
@@ -262,6 +262,35 @@
         "template": "L_TOTAL"
       }
     ]
+  },
+  "root_cause": {
+    "by_angle": {
+      "RC_CALENDAR": 3,
+      "RC_DECOY": 2,
+      "RC_FATIGUE": 1,
+      "RC_NOISE": 4,
+      "RC_PARENT": 3,
+      "RC_SCOPE": 3,
+      "RC_SPEND": 1,
+      "RC_TRACK": 1,
+      "RC_TRACK_CHILD": 1,
+      "RC_TRACK_DECOY": 1
+    },
+    "by_kind": {
+      "calendar": 3,
+      "fatigue": 1,
+      "logged": 9,
+      "noise": 4,
+      "tracking": 3
+    },
+    "causes_detected": {
+      "calendar": 11,
+      "fatigue": 1,
+      "logged": 3,
+      "noise": 10,
+      "tracking": 1
+    },
+    "pending_review": 8
   },
   "shortfalls": [],
   "trend_directions": {
