@@ -96,6 +96,29 @@ class Env:
     def label(self, level: str, key: str) -> str:
         return self.labels[level][key]
 
+    def entity(self, level: str, key: str, label: str | None = None) -> str:
+        """How question text names an entity. A label shared by several entities of the
+        level is qualified by the nearest parent that makes it unique ('the ad set "Video
+        Viewers" in the campaign "Clinic Awareness"'), else by its key ('... (S06)')."""
+        known = self.labels.get(level, {})
+        if key not in known:
+            return entity_text(level, label if label is not None else key)
+        name = known[key]
+        same = [k for k, lab in self.entities[level] if lab == name]
+        if len(same) <= 1:
+            return entity_text(level, name)
+        names = self.levels()
+        for parent in reversed(names[: names.index(level)]):
+            pkey = self.parent_of[level].get(key, {}).get(parent)
+            if pkey is None:
+                continue
+            clash = [
+                k for k in same if k != key and self.parent_of[level].get(k, {}).get(parent) == pkey
+            ]
+            if not clash:
+                return f"{entity_text(level, name)} in {self.entity(parent, pkey)}"
+        return f"{entity_text(level, name)} ({key})"
+
     def levels(self) -> list[str]:
         return [lv.name for lv in self.model.levels]
 
@@ -296,7 +319,7 @@ def l_total_build(env: Env, params: Params) -> Candidate:
     m, lv, key = params["metric"], params["level"], params["entity"]
     text = (
         f"What was the {total_phrase(m, env.model, env.ctx)} for "
-        f"{entity_text(lv, env.label(lv, key))} in {env.periods[params['period']].text}?"
+        f"{env.entity(lv, key)} in {env.periods[params['period']].text}?"
     )
     return _lookup(env, "L_TOTAL", params, sql_expr(env.model, m), text)
 
@@ -309,7 +332,7 @@ def l_ratio_build(env: Env, params: Params) -> Candidate:
     m, lv, key = params["metric"], params["level"], params["entity"]
     text = (
         f"What was the {metric_display(m, env.model, env.ctx)} for "
-        f"{entity_text(lv, env.label(lv, key))} in {env.periods[params['period']].text}?"
+        f"{env.entity(lv, key)} in {env.periods[params['period']].text}?"
     )
     return _lookup(env, "L_RATIO", params, sql_expr(env.model, m), text)
 
@@ -338,7 +361,7 @@ def l_daily_build(env: Env, params: Params) -> Candidate:
     m, lv, key = params["metric"], params["level"], params["entity"]
     text = (
         f"What was the {daily_phrase(m, env.model, env.ctx)} for "
-        f"{entity_text(lv, env.label(lv, key))} in {env.periods[params['period']].text}?"
+        f"{env.entity(lv, key)} in {env.periods[params['period']].text}?"
     )
     expr = f"CAST({sql_expr(env.model, m)} AS DOUBLE) / COUNT(DISTINCT {date_col(env.model)})"
     return _lookup(env, "L_DAILY", params, expr, text, per_day=True)
@@ -417,7 +440,7 @@ def a_rank_build(env: Env, params: Params) -> Candidate:
         higher, pkey = params["scope_level"], params["scope_entity"]
         levels.append(higher)
         where.append(f"{level_key(model, higher)} = {_lit(pkey)}")
-        scope_text = f" in {entity_text(higher, env.label(higher, pkey))}"
+        scope_text = f" in {env.entity(higher, pkey)}"
     text = (
         f"Which {level_display(level)}{scope_text} had "
         f"{rank_phrase(params['metric'], params['direction'], model, env.ctx)} in {period.text}?"
@@ -618,7 +641,7 @@ def c_level_build(env: Env, params: Params) -> Candidate:
         parent, pkey = params["parent_level"], params["parent_entity"]
         levels.append(parent)
         where.append(f"{level_key(model, parent)} = {_lit(pkey)}")
-        parent_text = entity_text(parent, env.label(parent, pkey))
+        parent_text = env.entity(parent, pkey)
         scope = f"the {level_display(level, plural=True)} in {parent_text}"
         members = len(_children(env, level, parent, pkey))
     else:
@@ -703,7 +726,7 @@ def c_months_build(env: Env, params: Params) -> Candidate:
     run = _month_run(env, params["first"], params["last"])
     text = (
         f"Compare monthly {metric_display(params['metric'], model, env.ctx)} for "
-        f"{entity_text(level, env.label(level, key))} from {run[0].text} to {run[-1].text}."
+        f"{env.entity(level, key)} from {run[0].text} to {run[-1].text}."
     )
     return _comparison(
         env,
@@ -793,7 +816,7 @@ def t_weekly_build(env: Env, params: Params) -> Candidate:
     end = start + timedelta(days=7 * int(params["weeks"]) - 1)
     text = (
         f"Look at weekly {metric_display(params['metric'], model, env.ctx)} for "
-        f"{entity_text(level, env.label(level, key))} from {day_text(start)} to {day_text(end)}."
+        f"{env.entity(level, key)} from {day_text(start)} to {day_text(end)}."
     )
     period_expr = (
         f"date_trunc('week', {date_col(model)})" if env.ctx.grain == "day" else date_col(model)
@@ -826,7 +849,7 @@ def t_monthly_build(env: Env, params: Params) -> Candidate:
     run = _month_run(env, params["first"], params["last"])
     text = (
         f"Look at monthly {metric_display(params['metric'], model, env.ctx)} for "
-        f"{entity_text(level, env.label(level, key))} from {run[0].text} to {run[-1].text}."
+        f"{env.entity(level, key)} from {run[0].text} to {run[-1].text}."
     )
     period_expr = f"date_trunc('month', {date_col(model)})"
     return _trend(env, "T_MONTHLY", params, text, period_expr, run[0].start, run[-1].end, len(run))
@@ -1159,7 +1182,7 @@ def root_cause_candidates(
     out: list[Candidate] = []
     for cause in causes:
         ev = cause.evidence
-        scope_text = entity_text(cause.scope_level, cause.scope_label)
+        scope_text = env.entity(cause.scope_level, cause.scope_key, cause.scope_label)
         if cause.kind == "logged":
             summary = logged_summary(cause, conv)
             window = _window_text(cause)
@@ -1168,8 +1191,9 @@ def root_cause_candidates(
             out.append(_rc_candidate(cause, "RC_SCOPE", question, logged_required(cause), summary))
             decoy = _decoy_for(env, cause, decoys, decoy_window_days)
             if decoy is not None:
+                decoy_text = env.entity(decoy.level, decoy.key, decoy.label)
                 question = (
-                    f"Was the {decoy.describe()} on {entity_text(decoy.level, decoy.label)} on "
+                    f"Was the {decoy.describe()} on {decoy_text} on "
                     f"{day_text(decoy.day)} the reason cost per {conv} rose for {scope_text} in "
                     f"the {window} from {when}?"
                 )
@@ -1179,7 +1203,7 @@ def root_cause_candidates(
             parent_text = None
             if "parent_key" in ev:
                 plevel, pkey = str(ev["parent_level"]), str(ev["parent_key"])
-                parent_text = entity_text(plevel, env.label(plevel, pkey))
+                parent_text = env.entity(plevel, pkey)
                 question = (
                     f"Why did cost per {conv} rise for {parent_text} in the {window} from {when}?"
                 )
@@ -1193,7 +1217,7 @@ def root_cause_candidates(
         elif cause.kind == "tracking":
             days = [date.fromisoformat(d) for d in str(ev["dates"]).split(",")]
             dates = _dates_text(days)
-            entity = entity_text(cause.entity_level, cause.entity_label)
+            entity = env.entity(cause.entity_level, cause.entity_key, cause.entity_label)
             summary = (
                 f"{_capital(plural)} for {cause.entity_label} fell to {_n(ev['conversions'])} "
                 f"on {dates} while clicks stayed at about {_n(ev['clicks_per_step'])} a "
@@ -1204,7 +1228,7 @@ def root_cause_candidates(
             out.append(_rc_candidate(cause, "RC_TRACK", question, [TRK_RE, "click"], summary))
             if "child_key" in ev:
                 clevel, ckey = str(ev["child_level"]), str(ev["child_key"])
-                child_text = _capital(entity_text(clevel, env.label(clevel, ckey)))
+                child_text = _capital(env.entity(clevel, ckey))
                 question = (
                     f"{child_text} got almost no {plural} on {dates}. Was the budget the problem?"
                 )
@@ -1215,13 +1239,14 @@ def root_cause_candidates(
                 out.append(_rc_candidate(cause, "RC_TRACK_CHILD", question, required, summary))
             decoy = _decoy_for(env, cause, decoys, decoy_window_days)
             if decoy is not None:
+                decoy_text = env.entity(decoy.level, decoy.key, decoy.label)
                 question = (
-                    f"Did the {decoy.describe()} on {entity_text(decoy.level, decoy.label)} on "
+                    f"Did the {decoy.describe()} on {decoy_text} on "
                     f"{day_text(decoy.day)} cause the drop in {plural} on {dates}?"
                 )
                 out.append(_rc_candidate(cause, "RC_TRACK_DECOY", question, [TRK_RE], summary))
         elif cause.kind == "fatigue":
-            entity = entity_text(cause.entity_level, cause.entity_label)
+            entity = env.entity(cause.entity_level, cause.entity_key, cause.entity_label)
             summary = (
                 f"No change was logged for {cause.entity_label} ({cause.entity_key}). Its "
                 f"frequency rose from {_n(ev['f0'])} to {_n(ev['f1'])} while its click-through "
@@ -1235,7 +1260,7 @@ def root_cause_candidates(
             required = [entity_regex(cause.entity_key, cause.entity_label), FAT_RE]
             out.append(_rc_candidate(cause, "RC_FATIGUE", question, required, summary))
         elif cause.kind == "calendar":
-            entity = entity_text(cause.entity_level, cause.entity_label)
+            entity = env.entity(cause.entity_level, cause.entity_key, cause.entity_label)
             more = float(ev["total2"]) > float(ev["total1"])
             summary = (
                 f"Nothing changed: {ev['month2']} has {_n(ev['days2'])} days and {ev['month1']} "
@@ -1249,7 +1274,7 @@ def root_cause_candidates(
             )
             out.append(_rc_candidate(cause, "RC_CALENDAR", question, [CAL_RE], summary))
         elif cause.kind == "noise":
-            entity = entity_text(cause.entity_level, cause.entity_label)
+            entity = env.entity(cause.entity_level, cause.entity_key, cause.entity_label)
             summary = (
                 f"No change was logged or detected; spend and clicks were flat ({_n(ev['s0'])} "
                 f"to {_n(ev['s1'])} and {_n(ev['k0'])} to {_n(ev['k1'])}). Only the share of "

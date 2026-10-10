@@ -48,7 +48,7 @@
           "metric": "link_clicks",
           "period": "2026-W04"
         },
-        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in the week of 19 January 2026 (Monday to Sunday)?",
+        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the week of 19 January 2026 (Monday 19 January to Sunday 25 January 2026)?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       },
@@ -59,7 +59,7 @@
           "metric": "conversions",
           "period": "2026-Q1"
         },
-        "question": "What was the total number of leads for the ad \"Video Viewers | Carousel\" in the first quarter of 2026?",
+        "question": "What was the total number of leads for the ad \"Video Viewers | Carousel\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       },
@@ -70,7 +70,7 @@
           "metric": "impressions",
           "period": "2026-Q1"
         },
-        "question": "What was the total number of impressions for the ad \"Video Viewers | Image\" in the first quarter of 2026?",
+        "question": "What was the total number of impressions for the ad \"Video Viewers | Image\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       }
@@ -83,7 +83,7 @@
           "metric": "conversions",
           "period": "last30"
         },
-        "question": "What was the total number of leads for the ad \"Video Viewers | Video\" in the last 30 days?",
+        "question": "What was the total number of leads for the ad \"Video Viewers | Video\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the last 30 days?",
         "reason": "all: 4 conversions < 20",
         "template": "L_TOTAL"
       },
@@ -94,7 +94,7 @@
           "metric": "link_clicks",
           "period": "2026-04"
         },
-        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in April 2026?",
+        "question": "What was the total number of link clicks for the ad \"Video Viewers | Carousel\" in the ad set \"Video Viewers\" in the campaign \"Clinic Awareness\" in April 2026?",
         "reason": "all: 75 link_clicks < 100",
         "template": "L_TOTAL"
       },
@@ -133,7 +133,7 @@
           "scope_entity": "S06",
           "scope_level": "ad_set"
         },
-        "question": "Which ad in the ad set \"Video Viewers\" had the highest cost per thousand impressions in the whole period?",
+        "question": "Which ad in the ad set \"Video Viewers\" in the campaign \"Clinic Awareness\" had the highest cost per thousand impressions in the whole period?",
         "reason": "top 14.0209 vs second 13.8316: margin 1.37% < 5%",
         "template": "A_RANK"
       },

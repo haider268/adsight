@@ -87,7 +87,9 @@ def test_demo_periods(demo_ctx: DatasetContext) -> None:
     weeks = [p for p in periods.values() if p.kind == "week"]
     assert weeks[0].start == date(2026, 1, 5) and weeks[-1].end == date(2026, 6, 28)
     assert all(w.start.weekday() == 0 and w.end - w.start == timedelta(days=6) for w in weeks)
-    assert periods["2026-W11"].text == "the week of 9 March 2026 (Monday to Sunday)"
+    assert periods["2026-W11"].text == (
+        "the week of 9 March 2026 (Monday 9 March to Sunday 15 March 2026)"
+    )
     assert len(weeks) == 25
     for p in periods.values():
         assert " 0" not in p.text

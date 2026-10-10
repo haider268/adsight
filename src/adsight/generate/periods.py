@@ -125,7 +125,9 @@ def full_weeks(ctx: DatasetContext) -> list[Period]:
     weeks: list[Period] = []
     for start in week_starts(ctx):
         iso_year, iso_week, _ = start.isocalendar()
-        text = f"the week of {day_text(start)} (Monday to Sunday)"
+        end = start + timedelta(days=6)
+        first = f"{start.day} {MONTH_NAMES[start.month - 1]}"
+        text = f"the week of {day_text(start)} (Monday {first} to Sunday {day_text(end)})"
         weeks.append(
             Period(f"{iso_year}-W{iso_week:02d}", text, start, start + timedelta(days=6), "week")
         )
