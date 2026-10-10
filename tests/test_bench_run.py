@@ -69,6 +69,10 @@ def texts(qdir: Path) -> dict[str, str]:
     return {q.id: q.question for q in load_questions(qdir / "questions.jsonl")}
 
 
+class Killed(BaseException):
+    """Stands for the process being killed (like Ctrl-C): not a per-question failure."""
+
+
 def refuse_all(req: LLMRequest) -> dict[str, Any]:
     return {"kind": "cannot_answer", "sql": "", "reason": "scripted"}
 
@@ -116,8 +120,8 @@ def test_a_killed_run_resumes_where_it_stopped(
     qdir: Path, card: str, con: Any, store: RunStore, tmp_path: Path
 ) -> None:
     cfg = RunConfig(qdir, "b1", SPEC, workers=1)
-    killer = ScriptedProvider(failing_on(texts(qdir)["TR01"], RuntimeError("killed")))
-    with pytest.raises(RuntimeError, match="killed"):
+    killer = ScriptedProvider(failing_on(texts(qdir)["TR01"], Killed("killed")))
+    with pytest.raises(Killed):
         go(cfg, killer, card, con, store, tmp_path)
     run_id = cfg.resolved_run_id
     assert statuses(store, run_id) == dict.fromkeys(["LK01", "LK02", "AG01"], "done")
@@ -227,3 +231,18 @@ def test_cli_run_replay_and_status(
     assert one.exit_code == 0 and "b0-fixture-scripted-six" not in one.output
     bad = runner.invoke(app, [*args[:6], "b9", *args[7:]])
     assert bad.exit_code == 2
+
+
+def test_one_failing_question_never_stops_the_run(
+    qdir: Path, card: str, con: Any, store: RunStore, tmp_path: Path
+) -> None:
+    cfg = RunConfig(qdir, "b0", SPEC, workers=1)
+    broken = ScriptedProvider(failing_on(texts(qdir)["AG01"], RuntimeError("bad\nsecond line")))
+    outcome = go(cfg, broken, card, con, store, tmp_path)
+    rows = {r["question_id"]: r for r in store.results(cfg.resolved_run_id)}
+    assert rows["AG01"]["status"] == "error"
+    assert rows["AG01"]["error"] == "RuntimeError: bad"
+    assert {q: r["status"] for q, r in rows.items() if q != "AG01"} == dict.fromkeys(
+        ["LK01", "LK02", "TR01", "AM01", "UN01"], "done"
+    )
+    assert outcome.exit_code == EXIT_OK and outcome.report["status"] == "incomplete"

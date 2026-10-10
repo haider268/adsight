@@ -313,3 +313,33 @@ def test_check_rules() -> None:
     assert check_result("g", result(["cvr"], [(4.5,)])) == [
         "Column cvr is above 1.0, but a rate should be a fraction."
     ]
+
+
+def test_impossible_dates_are_skipped() -> None:
+    from datetime import date
+
+    from adsight.agent.diagnose import find_window
+
+    sql = (
+        "SELECT 1 FROM daily_ad_metrics f WHERE f.date BETWEEN DATE '2026-02-30' "
+        "AND DATE '2026-04-31' OR f.date BETWEEN DATE '2026-02-10' AND DATE '2026-03-05'"
+    )
+    assert find_window("Why?", [{"sql": sql}]) == (date(2026, 2, 10), date(2026, 3, 5))
+    # the impossible day is skipped; the month it names is still a valid window
+    assert find_window("What happened on 30 February 2026?", []) == (
+        date(2026, 2, 1),
+        date(2026, 2, 28),
+    )
+
+
+def test_diagnose_never_raises(
+    model: SemanticModel, con: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from adsight.agent.diagnose import diagnose
+
+    def boom(*args: Any) -> Any:
+        raise RuntimeError("crafted failure")
+
+    monkeypatch.setattr(diagnose_module, "_entities", boom)
+    steps = [{"sql": S13_SQL, "rows": []}]
+    assert diagnose(model, con, WHY, steps) == "Diagnosis unavailable: RuntimeError"

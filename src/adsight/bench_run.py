@@ -400,6 +400,15 @@ async def run_benchmark(
         except TransientLLMError as exc:
             store.save(run_id, q.id, "retry", error=f"transient: {exc}")
             return
+        except Exception as exc:  # one failing question never stops the run
+            first_line = (str(exc).splitlines() or [""])[0]
+            log.error(
+                "question failed",
+                exc_info=True,
+                extra={"fields": {"question_id": q.id, "error": type(exc).__name__}},
+            )
+            store.save(run_id, q.id, "error", error=f"{type(exc).__name__}: {first_line}")
+            return
         judge, judge_info = judged
         passed = combine(verdict.passed, judge)
         reason = verdict.reason

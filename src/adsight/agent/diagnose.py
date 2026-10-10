@@ -13,6 +13,7 @@ from typing import Any
 
 import duckdb
 
+from adsight.log import get_logger
 from adsight.semantic.metrics import sql_expr
 from adsight.semantic.model import SemanticModel
 from adsight.semantic.sql import date_col, from_clause, level_key
@@ -25,6 +26,8 @@ FREQUENCY_WEEKS = 6
 MAX_LINES = 60
 MAX_ENTITIES = 3
 MAX_CHANGES = 20
+
+log = get_logger("agent.diagnose")
 
 MONTHS = {
     m: i
@@ -114,19 +117,30 @@ def _month_end(year: int, month: int) -> date:
 
 def find_window(question: str, steps: list[dict[str, Any]]) -> tuple[date, date] | None:
     """The span of dates the plan queried; failing that, the dates the question names."""
-    dates: list[date] = []
+    found: list[date | None] = []
     for step in steps:
-        dates += [date(int(y), int(m), int(d)) for y, m, d in _ISO.findall(step.get("sql", ""))]
+        found += [_safe_date(y, m, d) for y, m, d in _ISO.findall(step.get("sql", ""))]
+    dates = [d for d in found if d is not None]
     if dates:
         return min(dates), max(dates)
-    dates += [date(int(y), int(m), int(d)) for y, m, d in _ISO.findall(question)]
-    for d, month, y in _DAY_MONTH_YEAR.findall(question):
-        dates.append(date(int(y), MONTHS[month.lower()], int(d)))
+    found = [_safe_date(y, m, d) for y, m, d in _ISO.findall(question)]
+    found += [
+        _safe_date(y, MONTHS[month.lower()], d) for d, month, y in _DAY_MONTH_YEAR.findall(question)
+    ]
+    dates = [d for d in found if d is not None]
     if not dates:
         for month, y in _MONTH_YEAR.findall(question):
             m = MONTHS[month.lower()]
             dates += [date(int(y), m, 1), _month_end(int(y), m)]
     return (min(dates), max(dates)) if dates else None
+
+
+def _safe_date(year: str | int, month: str | int, day: str | int) -> date | None:
+    """A date, or None for an impossible one such as 2026-02-30 (model-written SQL)."""
+    try:
+        return date(int(year), int(month), int(day))
+    except ValueError:
+        return None
 
 
 def _related_keys(
@@ -235,7 +249,25 @@ def diagnose(
     steps: list[dict[str, Any]],
 ) -> str:
     """Compact evidence text (at most MAX_LINES lines). `steps` carry each plan step's
-    `sql` and result `rows`."""
+    `sql` and result `rows`. Never raises: an unexpected failure becomes one line, with
+    the traceback logged."""
+    try:
+        return _diagnose(model, con, question, steps)
+    except Exception as exc:
+        log.error(
+            "diagnose failed",
+            exc_info=True,
+            extra={"fields": {"error": f"{type(exc).__name__}: {exc}"}},
+        )
+        return f"Diagnosis unavailable: {type(exc).__name__}"
+
+
+def _diagnose(
+    model: SemanticModel,
+    con: duckdb.DuckDBPyConnection,
+    question: str,
+    steps: list[dict[str, Any]],
+) -> str:
     entities = find_entities(model, con, question, steps)
     window = find_window(question, steps)
     if not entities:
