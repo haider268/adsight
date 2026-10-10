@@ -1,0 +1,47 @@
+"""Groq (free tier) through langchain_groq.ChatGroq with json_schema structured output."""
+
+from typing import Any
+
+from pydantic import SecretStr
+
+from adsight.llm.limits import Limits
+from adsight.llm.providers.langchain_chat import (
+    RunnableFactory,
+    StructuredRunnable,
+    structured_call,
+)
+from adsight.llm.types import LLMRequest, LLMResponse
+
+GROQ_LIMITS = Limits(requests_per_min=30, tokens_per_min=8000, concurrency=2)
+# qwen/qwen3.8-27b rejects any request whose max_tokens is 1,000 or more.
+MAX_TOKENS_CAP = {"qwen/qwen3.8-27b": 900}
+
+
+def groq_max_tokens(model: str, requested: int) -> int:
+    cap = MAX_TOKENS_CAP.get(model)
+    return requested if cap is None else min(requested, cap)
+
+
+class GroqProvider:
+    def __init__(self, api_key: SecretStr | None, factory: RunnableFactory | None = None):
+        self.api_key = api_key
+        self.factory = factory or self._chat
+
+    def _chat(self, req: LLMRequest, schema: dict[str, Any]) -> StructuredRunnable:
+        from langchain_groq import ChatGroq
+
+        if self.api_key is None:
+            raise RuntimeError("GROQ_API_KEY is not set")
+        chat = ChatGroq(
+            model=req.model,
+            api_key=self.api_key,
+            max_tokens=groq_max_tokens(req.model, req.max_tokens),
+            max_retries=0,
+        )
+        runnable: StructuredRunnable = chat.with_structured_output(
+            schema, method="json_schema", include_raw=True
+        )
+        return runnable
+
+    async def complete(self, req: LLMRequest, salt: str = "") -> LLMResponse:
+        return await structured_call(req, self.factory, "groq")
