@@ -1,0 +1,9 @@
+{
+  "conversion_name": "conversion",
+  "conversion_plural": "conversions",
+  "data_end": "2026-06-28",
+  "data_start": "2026-01-05",
+  "grain": "week",
+  "name": "adsight-flat-demo",
+  "today": "2026-06-29"
+}

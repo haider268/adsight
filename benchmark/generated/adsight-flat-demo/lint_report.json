@@ -1,0 +1,296 @@
+{
+  "accepted": 164,
+  "candidates_evaluated": 251,
+  "per_category": {
+    "aggregation": {
+      "selected": 15,
+      "target": 15
+    },
+    "ambiguous": {
+      "selected": 10,
+      "target": 10
+    },
+    "comparison": {
+      "selected": 15,
+      "target": 15
+    },
+    "lookup": {
+      "selected": 15,
+      "target": 15
+    },
+    "root_cause": {
+      "selected": 12,
+      "target": 20
+    },
+    "trend": {
+      "selected": 15,
+      "target": 15
+    },
+    "unanswerable": {
+      "selected": 10,
+      "target": 10
+    }
+  },
+  "rejected_by_rule": {
+    "R1_EXECUTES": 6,
+    "R2_VOLUME": 19,
+    "R3_MARGIN": 5,
+    "R5_TREND": 18,
+    "R6_DISTINCT": 32,
+    "R7_COVERAGE": 7
+  },
+  "rejected_examples": {
+    "R1_EXECUTES": [
+      {
+        "params": {
+          "entity": "Local Radius 15mi",
+          "level": "ad_set",
+          "metric": "cpl",
+          "period": "2026-01"
+        },
+        "question": "What was the cost per conversion for the ad set \"Local Radius 15mi\" in January 2026?",
+        "reason": "result contains NULL values",
+        "template": "L_RATIO"
+      },
+      {
+        "params": {
+          "direction": "highest",
+          "level": "campaign",
+          "metric": "cpl",
+          "period": "2026-01"
+        },
+        "question": "Which campaign had the highest cost per conversion in January 2026?",
+        "reason": "result contains NULL values",
+        "template": "A_RANK"
+      },
+      {
+        "params": {
+          "level": "ad_set",
+          "metric": "ctr",
+          "parent_entity": "C6",
+          "parent_level": "campaign",
+          "period": "2026-01"
+        },
+        "question": "Compare click-through rate (clicks divided by impressions) across the ad sets in the campaign \"Membership Promo\" in January 2026.",
+        "reason": "no rows returned",
+        "template": "C_LEVEL"
+      }
+    ],
+    "R2_VOLUME": [
+      {
+        "params": {
+          "level": "ad_set",
+          "metric": "conversions",
+          "parent_entity": "C9",
+          "parent_level": "campaign",
+          "period": "2026-04"
+        },
+        "question": "Compare conversions across the ad sets in the campaign \"Roofing Inspection\" in April 2026.",
+        "reason": "Video Viewers: 8 conversions < 10",
+        "template": "C_LEVEL"
+      },
+      {
+        "params": {
+          "level": "ad_set",
+          "metric": "cpl",
+          "parent_entity": "C9",
+          "parent_level": "campaign",
+          "period": "last30"
+        },
+        "question": "Compare cost per conversion across the ad sets in the campaign \"Roofing Inspection\" in the last 30 days.",
+        "reason": "Storm Zip Codes: 17 conversions < 20",
+        "template": "C_LEVEL"
+      },
+      {
+        "params": {
+          "entity": "C9",
+          "first": "2026-02",
+          "last": "2026-04",
+          "level": "campaign",
+          "metric": "conversions"
+        },
+        "question": "Compare monthly conversions for the campaign \"Roofing Inspection\" from February 2026 to April 2026.",
+        "reason": "2026-03: 7 conversions < 10",
+        "template": "C_MONTHS"
+      }
+    ],
+    "R3_MARGIN": [
+      {
+        "params": {
+          "direction": "lowest",
+          "level": "ad_set",
+          "metric": "cpm",
+          "period": "whole",
+          "scope_entity": "C5",
+          "scope_level": "campaign"
+        },
+        "question": "Which ad set in the campaign \"Laser Hair Removal\" had the lowest cost per thousand impressions in the whole period?",
+        "reason": "top 12.0089 vs second 12.0926: margin 0.69% < 5%",
+        "template": "A_RANK"
+      },
+      {
+        "params": {
+          "direction": "lowest",
+          "level": "ad_set",
+          "metric": "cpc",
+          "period": "2026-03"
+        },
+        "question": "Which ad set had the lowest cost per click in March 2026?",
+        "reason": "top 0.520267 vs second 0.520551: margin 0.05% < 5%",
+        "template": "A_RANK"
+      },
+      {
+        "params": {
+          "direction": "lowest",
+          "level": "ad_set",
+          "metric": "impressions",
+          "period": "whole"
+        },
+        "question": "Which ad set had the fewest impressions in the whole period?",
+        "reason": "top 243877 vs second 251293: margin 2.95% < 3%",
+        "template": "A_RANK"
+      }
+    ],
+    "R5_TREND": [
+      {
+        "params": {
+          "entity": "C5",
+          "level": "campaign",
+          "metric": "clicks",
+          "start": "2026-02-16",
+          "weeks": "4"
+        },
+        "question": "Look at weekly clicks for the campaign \"Laser Hair Removal\" from 16 February 2026 to 15 March 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change +3.06% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      },
+      {
+        "params": {
+          "entity": "Retargeting Site",
+          "level": "ad_set",
+          "metric": "impressions",
+          "start": "2026-05-04",
+          "weeks": "8"
+        },
+        "question": "Look at weekly impressions for the ad set \"Retargeting Site\" from 4 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change +4.42% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      },
+      {
+        "params": {
+          "entity": "C6",
+          "level": "campaign",
+          "metric": "clicks",
+          "start": "2026-03-16",
+          "weeks": "8"
+        },
+        "question": "Look at weekly clicks for the campaign \"Membership Promo\" from 16 March 2026 to 10 May 2026. Is it rising, falling, or roughly flat?",
+        "reason": "change -3.32% is neither flat (<= 2%) nor clear (>= 9%)",
+        "template": "T_WEEKLY"
+      }
+    ],
+    "R6_DISTINCT": [
+      {
+        "params": {
+          "level": "ad_set",
+          "metric": "cvr",
+          "parent_entity": "C7",
+          "parent_level": "campaign",
+          "period": "2026-04"
+        },
+        "question": "Compare conversion rate (conversions per click) across the ad sets in the campaign \"HVAC Tune-Up\" in April 2026.",
+        "reason": "Homeowners 35-65 (0.049674) and New Movers (0.049569) match",
+        "template": "C_LEVEL"
+      },
+      {
+        "params": {
+          "level": "ad_set",
+          "metric": "ctr",
+          "parent_entity": "C1",
+          "parent_level": "campaign",
+          "period": "2026-01"
+        },
+        "question": "Compare click-through rate (clicks divided by impressions) across the ad sets in the campaign \"Knee Pain PRP\" in January 2026.",
+        "reason": "Knee 45-65 Broad (0.0180166) and Knee Interest Stack (0.018027) match",
+        "template": "C_LEVEL"
+      },
+      {
+        "params": {
+          "entity": "Knee Interest Stack",
+          "first": "2026-01",
+          "last": "2026-06",
+          "level": "ad_set",
+          "metric": "spend"
+        },
+        "question": "Compare monthly spend for the ad set \"Knee Interest Stack\" from January 2026 to June 2026.",
+        "reason": "2026-04 (1225.99) and 2026-05 (1231.44) match",
+        "template": "C_MONTHS"
+      }
+    ],
+    "R7_COVERAGE": [
+      {
+        "params": {
+          "entity": "Local Radius 15mi",
+          "level": "ad_set",
+          "metric": "conversions",
+          "period": "2026-Q1"
+        },
+        "question": "What was the total number of conversions for the ad set \"Local Radius 15mi\" in the first quarter of 2026?",
+        "reason": "all: data on 10 of 13 dates",
+        "template": "L_TOTAL"
+      },
+      {
+        "params": {
+          "entity": "C6",
+          "level": "campaign",
+          "metric": "cpc",
+          "period": "whole"
+        },
+        "question": "What was the cost per click for the campaign \"Membership Promo\" in the whole period?",
+        "reason": "all: data on 18 of 25 dates",
+        "template": "L_RATIO"
+      },
+      {
+        "params": {
+          "entity": "C9",
+          "level": "campaign",
+          "metric": "cpc",
+          "period": "whole"
+        },
+        "question": "What was the cost per click for the campaign \"Roofing Inspection\" in the whole period?",
+        "reason": "all: data on 13 of 25 dates",
+        "template": "L_RATIO"
+      }
+    ]
+  },
+  "root_cause": {
+    "approved": 0,
+    "by_angle": {
+      "RC_NOISE": 12
+    },
+    "by_kind": {
+      "calendar": 0,
+      "fatigue": 0,
+      "logged": 0,
+      "noise": 12,
+      "tracking": 0
+    },
+    "causes_detected": {
+      "calendar": 0,
+      "fatigue": 0,
+      "logged": 0,
+      "noise": 12,
+      "tracking": 0
+    },
+    "pending_review": 12,
+    "rejected": 0
+  },
+  "shortfalls": [
+    "root_cause: 12 of 20 selected"
+  ],
+  "trend_directions": {
+    "down": 5,
+    "flat": 5,
+    "up": 5
+  }
+}

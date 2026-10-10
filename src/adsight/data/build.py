@@ -2,11 +2,14 @@
 
 import csv
 from collections.abc import Iterable, Sequence
+from datetime import date, timedelta
+from decimal import Decimal
 from importlib.resources import files
 from pathlib import Path
 
 import duckdb
 
+from adsight.data.catalog import WINDOW_END, WINDOW_START
 from adsight.data.generator import Dataset
 
 TABLES = ("accounts", "campaigns", "ad_sets", "ads", "daily_ad_metrics", "events_log")
@@ -105,6 +108,77 @@ def build_database(dataset: Dataset, path: Path) -> dict[str, int]:
     finally:
         con.close()
     return counts
+
+
+FLAT_SCHEMA = (
+    "CREATE TABLE perf (week_start DATE, campaign_id VARCHAR, campaign_name VARCHAR, "
+    "ad_group VARCHAR, cost DOUBLE, impr BIGINT, clicks BIGINT, conversions BIGINT)"
+)
+
+
+def full_weeks() -> list[date]:
+    """Monday starts of the weeks that lie entirely inside the data window."""
+    first = WINDOW_START + timedelta(days=-WINDOW_START.weekday() % 7)
+    weeks: list[date] = []
+    while first + timedelta(days=6) <= WINDOW_END:
+        weeks.append(first)
+        first += timedelta(days=7)
+    return weeks
+
+
+def flat_rows(dataset: Dataset) -> list[tuple[Cell, ...]]:
+    """The dataset as one Google-style weekly table: campaign x ad group x full week.
+
+    Spend is summed from the cent-rounded daily values, so totals match the daily table.
+    """
+    weeks = set(full_weeks())
+    ad_set_of = {a.ad_id: a.ad_set_id for a in dataset.ads}
+    sets = {s.ad_set_id: s for s in dataset.ad_sets}
+    campaigns = {c.campaign_id: c for c in dataset.campaigns}
+    totals: dict[tuple[date, str], list[Decimal | int]] = {}
+    for m in dataset.metrics:
+        week = m.date - timedelta(days=m.date.weekday())
+        if week not in weeks:
+            continue
+        acc = totals.setdefault((week, ad_set_of[m.ad_id]), [Decimal(0), 0, 0, 0])
+        acc[0] += Decimal(f"{m.spend:.2f}")
+        acc[1] += m.impressions
+        acc[2] += m.clicks
+        acc[3] += m.leads
+    rows: list[tuple[Cell, ...]] = []
+    for (week, ad_set_id), (cost, impr, clicks, conversions) in totals.items():
+        campaign = campaigns[sets[ad_set_id].campaign_id]
+        rows.append(
+            (
+                week.isoformat(),
+                campaign.campaign_id,
+                campaign.name,
+                sets[ad_set_id].name,
+                str(cost),
+                int(impr),
+                int(clicks),
+                int(conversions),
+            )
+        )
+    rows.sort(key=lambda r: (str(r[0]), str(r[1]), str(r[3])))
+    return rows
+
+
+def build_flat_database(dataset: Dataset, path: Path) -> int:
+    """Recreate a one-table weekly database (no accounts, reach or change log) at `path`
+    and return its row count."""
+    wal = path.with_name(path.name + ".wal")
+    for stale in (path, wal):
+        stale.unlink(missing_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(path))
+    try:
+        con.execute(FLAT_SCHEMA)
+        _copy_in(con, "perf", flat_rows(dataset), path.with_name(f".{path.name}.load.csv"))
+        row = con.execute("SELECT COUNT(*) FROM perf").fetchone()
+    finally:
+        con.close()
+    return int(row[0]) if row else 0
 
 
 def open_readonly(path: Path) -> duckdb.DuckDBPyConnection:

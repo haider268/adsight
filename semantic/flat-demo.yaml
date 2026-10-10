@@ -1,0 +1,22 @@
+version: 1
+name: adsight-flat-demo
+currency: USD
+conversion_name: conversion
+grain: week
+fact:
+  table: perf
+  date: week_start
+  measures:
+    spend: cost
+    impressions: impr
+    clicks: clicks
+    conversions: conversions
+levels:
+- name: campaign
+  table: perf
+  key: campaign_id
+  label: campaign_name
+- name: ad_set
+  table: perf
+  key: ad_group
+attributes: []

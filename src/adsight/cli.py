@@ -1,5 +1,6 @@
 """Command-line entry point."""
 
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -41,15 +42,27 @@ def version() -> None:
     console.print(f"adsight {__version__}")
 
 
+class Shape(StrEnum):
+    daily = "daily"
+    flat_weekly = "flat-weekly"
+
+
 @app.command()
 def data(
     seed: Annotated[int | None, typer.Option(help="RNG seed. Default: ADSIGHT_SEED or 7.")] = None,
     data_dir: Annotated[
         Path | None, typer.Option(help="Output folder. Default: ADSIGHT_DATA_DIR or data.")
     ] = None,
+    shape: Annotated[
+        Shape,
+        typer.Option(help="daily: the Meta-style tables; flat-weekly: one Google-style table."),
+    ] = Shape.daily,
 ) -> None:
-    """Generate the dataset into <data-dir>/adsight.duckdb, with <data-dir>/manifest.json."""
-    from adsight.data.build import build_database
+    """Generate the dataset into <data-dir>/adsight.duckdb, with <data-dir>/manifest.json.
+
+    With --shape flat-weekly, write <data-dir>/flat/adsight_flat.duckdb instead.
+    """
+    from adsight.data.build import build_database, build_flat_database
     from adsight.data.generator import generate
     from adsight.data.manifest import build_manifest, write_manifest
 
@@ -59,6 +72,16 @@ def data(
     if data_dir is not None:
         settings.data_dir = data_dir
     configure_logging(settings.log_level)
+
+    if shape is Shape.flat_weekly:
+        flat_path = settings.data_dir / "flat" / "adsight_flat.duckdb"
+        n = build_flat_database(generate(settings.seed), flat_path)
+        console.print(f"adsight data (seed {settings.seed}, flat-weekly) -> {flat_path}: perf {n}")
+        get_logger("data").info(
+            "flat data built",
+            extra={"fields": {"seed": settings.seed, "path": flat_path, "rows": n}},
+        )
+        return
 
     path = settings.db_path
     manifest_path = settings.data_dir / "manifest.json"
@@ -121,6 +144,9 @@ def refs(
         Path | None, typer.Option(help="Data folder. Default: ADSIGHT_DATA_DIR or data.")
     ] = None,
     write: Annotated[bool, typer.Option("--write", help="Store the computed answers.")] = False,
+    db: Annotated[
+        Path | None, typer.Option("--db", help="DuckDB file. Overrides --data-dir.")
+    ] = None,
 ) -> None:
     """Check (or with --write, store) every question's expected answer from reference SQL."""
     import json
@@ -132,7 +158,7 @@ def refs(
     settings = get_settings()
     if data_dir is not None:
         settings.data_dir = data_dir
-    db_path = settings.db_path
+    db_path = db if db is not None else settings.db_path
     if not db_path.is_file():
         err_console.print(f"database not found at {db_path}: run `adsight data` first")
         raise typer.Exit(2)
