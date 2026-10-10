@@ -17,6 +17,7 @@ import duckdb
 from adsight.benchmark.questions import Category
 from adsight.generate.context import DatasetContext
 from adsight.generate.periods import (
+    MONTH_NAMES,
     Period,
     all_periods,
     day_text,
@@ -1059,6 +1060,27 @@ def _window_text(cause: "Cause") -> str:
     return "week" if cause.evidence.get("change_type") == "audience_edit" else "two weeks"
 
 
+def span_text(start: date, end: date) -> str:
+    """'16 to 29 March 2026', '20 April to 3 May 2026', '28 December 2025 to 10 January
+    2026': the end always carries month and year."""
+    if (start.year, start.month) == (end.year, end.month):
+        first = str(start.day)
+    elif start.year == end.year:
+        first = f"{start.day} {MONTH_NAMES[start.month - 1]}"
+    else:
+        first = day_text(start)
+    return f"{first} to {day_text(end)}"
+
+
+def comparison_text(cause: "Cause") -> str:
+    """The exact windows a logged cause's reference measured: 'in the two weeks from 16
+    March 2026 (16 to 29 March 2026), compared with the two weeks before'."""
+    return (
+        f"in the {_window_text(cause)} from {day_text(cause.start)} "
+        f"({span_text(cause.start, cause.end)}), compared with the two weeks before"
+    )
+
+
 def logged_required(cause: "Cause", include_changed_entity: bool = False) -> list[str]:
     ev = cause.evidence
     ctype = str(ev["change_type"])
@@ -1185,17 +1207,16 @@ def root_cause_candidates(
         scope_text = env.entity(cause.scope_level, cause.scope_key, cause.scope_label)
         if cause.kind == "logged":
             summary = logged_summary(cause, conv)
-            window = _window_text(cause)
-            when = day_text(cause.start)
-            question = f"Why did cost per {conv} rise for {scope_text} in the {window} from {when}?"
+            compared = comparison_text(cause)
+            question = f"Why did cost per {conv} rise for {scope_text} {compared}?"
             out.append(_rc_candidate(cause, "RC_SCOPE", question, logged_required(cause), summary))
             decoy = _decoy_for(env, cause, decoys, decoy_window_days)
             if decoy is not None:
                 decoy_text = env.entity(decoy.level, decoy.key, decoy.label)
                 question = (
                     f"Was the {decoy.describe()} on {decoy_text} on "
-                    f"{day_text(decoy.day)} the reason cost per {conv} rose for {scope_text} in "
-                    f"the {window} from {when}?"
+                    f"{day_text(decoy.day)} the reason cost per {conv} rose for {scope_text} "
+                    f"{compared}?"
                 )
                 out.append(
                     _rc_candidate(cause, "RC_DECOY", question, logged_required(cause), summary)
@@ -1204,14 +1225,12 @@ def root_cause_candidates(
             if "parent_key" in ev:
                 plevel, pkey = str(ev["parent_level"]), str(ev["parent_key"])
                 parent_text = env.entity(plevel, pkey)
-                question = (
-                    f"Why did cost per {conv} rise for {parent_text} in the {window} from {when}?"
-                )
+                question = f"Why did cost per {conv} rise for {parent_text} {compared}?"
                 with_changed = ev["change_type"] != "paused"
                 required = logged_required(cause, include_changed_entity=with_changed)
                 out.append(_rc_candidate(cause, "RC_PARENT", question, required, summary))
             if "spend_jump" in ev:
-                question = f"Why did spend for {parent_text or scope_text} jump from {when}?"
+                question = f"Why did spend for {parent_text or scope_text} jump {compared}?"
                 required = [entity_regex(cause.entity_key, cause.entity_label), BUDG_RE]
                 out.append(_rc_candidate(cause, "RC_SPEND", question, required, summary))
         elif cause.kind == "tracking":
