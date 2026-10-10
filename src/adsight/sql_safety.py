@@ -138,36 +138,55 @@ def run_sql(
     timeout_s: float = 10.0,
 ) -> SqlResult:
     """Validate and run `sql` on a read-only connection. Never raises: a rejection, a
-    database error or a timeout ("timeout") comes back in `error`."""
+    database error or a timeout ("timeout") comes back in `error`.
+
+    Every call runs on its own cursor, never on `con` itself: questions run concurrently
+    (sync graph nodes run in a thread pool) and a shared connection hands one query's
+    result to another."""
     try:
         safe = validate_sql(sql, allowed_tables)
     except UnsafeSQL as exc:
         return SqlResult(error=f"unsafe SQL: {exc.reason}")
     timed_out = threading.Event()
+    cur = con.cursor()
 
     def interrupt() -> None:
         timed_out.set()
-        con.interrupt()
+        cur.interrupt()
 
     timer = threading.Timer(timeout_s, interrupt)
     timer.daemon = True
     timer.start()
     try:
-        cursor = con.execute(safe)
-        columns = [d[0] for d in cursor.description or []]
-        fetched = cursor.fetchmany(max_rows + 1)
+        cur.execute(safe)
+        columns = [d[0] for d in cur.description or []]
+        fetched = cur.fetchmany(max_rows + 1)
     except duckdb.Error as exc:
         if timed_out.is_set():
             return SqlResult(error="timeout")
         return SqlResult(error=f"{type(exc).__name__}: {str(exc).splitlines()[0]}")
     finally:
         timer.cancel()
+        cur.close()
     if timed_out.is_set():
         return SqlResult(error="timeout")
     rows = [tuple(r) for r in fetched[:max_rows]]
     return SqlResult(
         columns=columns, rows=rows, row_count=len(rows), truncated=len(fetched) > max_rows
     )
+
+
+def query(
+    con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | None = None
+) -> list[tuple[Any, ...]]:
+    """Trusted internal SQL (schema card, diagnose tool) on its own cursor, for the same
+    reason as run_sql: the connection is shared by concurrent questions."""
+    cur = con.cursor()
+    try:
+        cur.execute(sql, params or [])
+        return [tuple(r) for r in cur.fetchall()]
+    finally:
+        cur.close()
 
 
 def open_agent_connection(db_path: Path) -> duckdb.DuckDBPyConnection:

@@ -16,6 +16,7 @@ import duckdb
 from adsight.semantic.metrics import sql_expr
 from adsight.semantic.model import SemanticModel
 from adsight.semantic.sql import date_col, from_clause, level_key
+from adsight.sql_safety import query
 
 CHANGE_MARGIN_DAYS = 21
 COMPARE_DAYS = 14
@@ -68,10 +69,11 @@ def _entities(model: SemanticModel, con: duckdb.DuckDBPyConnection) -> dict[str,
     index: dict[str, Entity] = {}
     for lv in model.levels:
         shown = _q(lv.label) if lv.label else _q(lv.key)
-        rows = con.execute(
+        rows = query(
+            con,
             f"SELECT DISTINCT CAST({_q(lv.key)} AS VARCHAR), CAST({shown} AS VARCHAR) "
-            f"FROM {_q(lv.table)} WHERE {_q(lv.key)} IS NOT NULL"
-        ).fetchall()
+            f"FROM {_q(lv.table)} WHERE {_q(lv.key)} IS NOT NULL",
+        )
         for key, label in rows:
             entity = Entity(lv.name, str(key), str(label))
             index.setdefault(str(key), entity)
@@ -133,11 +135,12 @@ def _related_keys(
     """level -> keys of the entity itself, its ancestors and its descendants."""
     names = [lv.name for lv in model.levels]
     select = ", ".join(f"CAST({level_key(model, n)} AS VARCHAR)" for n in names)
-    rows = con.execute(
+    rows = query(
+        con,
         f"SELECT DISTINCT {select} {from_clause(model, names, [])} "
         f"WHERE CAST({level_key(model, entity.level)} AS VARCHAR) = ?",
         [entity.key],
-    ).fetchall()
+    )
     related: dict[str, set[str]] = {n: set() for n in names}
     for row in rows:
         for name, value in zip(names, row, strict=True):
@@ -159,13 +162,14 @@ def _changes(
     old = _q(log.old_value) if log.old_value else "NULL"
     new = _q(log.new_value) if log.new_value else "NULL"
     etype = _q(log.entity_type) if log.entity_type else "NULL"
-    rows = con.execute(
+    rows = query(
+        con,
         f"SELECT CAST({_q(log.date)} AS DATE), CAST({etype} AS VARCHAR), "
         f"CAST({_q(log.entity_id)} AS VARCHAR), CAST({_q(log.change_type)} AS VARCHAR), "
         f"CAST({old} AS VARCHAR), CAST({new} AS VARCHAR) FROM {_q(log.table)} "
         f"WHERE CAST({_q(log.date)} AS DATE) BETWEEN ? AND ? ORDER BY 1, 3",
         [start - timedelta(days=CHANGE_MARGIN_DAYS), end + timedelta(days=CHANGE_MARGIN_DAYS)],
-    ).fetchall()
+    )
     out = []
     for row in rows:
         level, entity_id = row[1], row[2]
@@ -187,7 +191,8 @@ def _metrics(
         f"WHERE CAST({level_key(model, level)} AS VARCHAR) = ? "
         f"AND CAST({date_col(model)} AS DATE) BETWEEN ? AND ?"
     )
-    return con.execute(sql, [key, a, b]).fetchone()
+    rows = query(con, sql, [key, a, b])
+    return rows[0] if rows else None
 
 
 def _fmt(value: Any) -> str:
@@ -214,12 +219,13 @@ def _series(
 ) -> list[tuple[Any, ...]]:
     period = f"date_trunc('{bucket}', CAST({date_col(model)} AS DATE))"
     exprs = ", ".join(sql_expr(model, m) for m in metrics)
-    return con.execute(
+    return query(
+        con,
         f"SELECT CAST({period} AS DATE) AS p, {exprs} {from_clause(model, [entity.level], [])} "
         f"WHERE CAST({level_key(model, entity.level)} AS VARCHAR) = ? "
         f"AND CAST({date_col(model)} AS DATE) BETWEEN ? AND ? GROUP BY 1 ORDER BY 1",
         [entity.key, a, b],
-    ).fetchall()
+    )
 
 
 def diagnose(

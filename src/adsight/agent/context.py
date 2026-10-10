@@ -10,6 +10,7 @@ from adsight.generate.context import DatasetContext
 from adsight.semantic.metrics import available_metrics, sql_expr
 from adsight.semantic.model import Level, SemanticModel
 from adsight.semantic.sql import from_clause
+from adsight.sql_safety import query
 
 MAX_ATTRIBUTE_VALUES = 12
 MAX_ENTITY_EXAMPLES = 5
@@ -68,15 +69,16 @@ def _mapped_columns(model: SemanticModel) -> dict[str, dict[str, str]]:
 
 
 def _types(con: duckdb.DuckDBPyConnection, table: str) -> dict[str, str]:
-    rows = con.execute(f"DESCRIBE {_q(table)}").fetchall()
+    rows = query(con, f"DESCRIBE {_q(table)}")
     return {str(r[0]): str(r[1]) for r in rows}
 
 
 def _values(con: duckdb.DuckDBPyConnection, table: str, column: str) -> str:
-    rows = con.execute(
+    rows = query(
+        con,
         f"SELECT DISTINCT CAST({_q(column)} AS VARCHAR) AS v FROM {_q(table)} "
-        f"WHERE {_q(column)} IS NOT NULL ORDER BY v LIMIT {MAX_ATTRIBUTE_VALUES + 1}"
-    ).fetchall()
+        f"WHERE {_q(column)} IS NOT NULL ORDER BY v LIMIT {MAX_ATTRIBUTE_VALUES + 1}",
+    )
     values = [str(r[0]) for r in rows]
     more = len(values) > MAX_ATTRIBUTE_VALUES
     return " | ".join(values[:MAX_ATTRIBUTE_VALUES]) + (" | ..." if more else "")
@@ -87,10 +89,11 @@ def entity_line(model: SemanticModel, level: Level, con: duckdb.DuckDBPyConnecti
     key order (labels, or keys when the level has no label)."""
     key = _q(level.key)
     shown = _q(level.label) if level.label else key
-    rows = con.execute(
+    rows = query(
+        con,
         f"SELECT {key}, MIN(CAST({shown} AS VARCHAR)), COUNT(*) OVER () FROM {_q(level.table)} "
-        f"WHERE {key} IS NOT NULL GROUP BY {key} ORDER BY {key} LIMIT {MAX_ENTITY_EXAMPLES + 1}"
-    ).fetchall()
+        f"WHERE {key} IS NOT NULL GROUP BY {key} ORDER BY {key} LIMIT {MAX_ENTITY_EXAMPLES + 1}",
+    )
     count = int(rows[0][2]) if rows else 0
     examples = ", ".join(f'"{r[1]}"' for r in rows[:MAX_ENTITY_EXAMPLES])
     more = ", ..." if count > MAX_ENTITY_EXAMPLES else ""
