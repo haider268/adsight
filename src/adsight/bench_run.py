@@ -16,12 +16,15 @@ from typing import Any
 import duckdb
 
 from adsight.architectures import run_question
+from adsight.benchmark.answer import AgentAnswer
 from adsight.benchmark.questions import Question, effective_questions, load_questions
 from adsight.benchmark.score import score
+from adsight.judge import JudgeJSON, combine, judge_root_cause, reference_text
 from adsight.llm.base import (
     BudgetExceeded,
     CacheMiss,
     DailyLimitReached,
+    InvalidLLMOutput,
     LLMProvider,
     TransientLLMError,
 )
@@ -64,6 +67,13 @@ CREATE TABLE IF NOT EXISTS results (
 );
 """
 
+# Columns added after the first release; existing databases gain them on open.
+ADDED_COLUMNS = {
+    "judge_passed": "INTEGER",
+    "judge_json": "TEXT",
+    "untraceable_numbers": "INTEGER NOT NULL DEFAULT 0",
+}
+
 log = get_logger("bench.run")
 
 
@@ -78,6 +88,10 @@ class RunStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.con = sqlite3.connect(str(path))
         self.con.executescript(RUNS_SCHEMA)
+        have = {str(r[1]) for r in self.con.execute("PRAGMA table_info(results)")}
+        for column, decl in ADDED_COLUMNS.items():
+            if column not in have:
+                self.con.execute(f"ALTER TABLE results ADD COLUMN {column} {decl}")
         self.con.commit()
 
     def close(self) -> None:
@@ -114,25 +128,21 @@ class RunStore:
             "cost_usd": 0.0,
             "latency_ms": 0.0,
             "error": None,
+            "judge_passed": None,
+            "judge_json": None,
+            "untraceable_numbers": 0,
         } | values
+        for flag in ("passed", "judge_passed"):
+            if row[flag] is not None:
+                row[flag] = int(row[flag])
+        row |= {"run_id": run_id, "question_id": question_id, "status": status}
+        row["finished_at"] = now_iso()
+        names = list(row)
         with self.con:
             self.con.execute(
-                "INSERT OR REPLACE INTO results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    run_id,
-                    question_id,
-                    status,
-                    None if row["passed"] is None else int(row["passed"]),
-                    row["reason"],
-                    row["answer_json"],
-                    row["llm_calls"],
-                    row["input_tokens"],
-                    row["output_tokens"],
-                    row["cost_usd"],
-                    row["latency_ms"],
-                    row["error"],
-                    now_iso(),
-                ),
+                f"INSERT OR REPLACE INTO results ({', '.join(names)}) "
+                f"VALUES ({', '.join('?' for _ in names)})",
+                [row[n] for n in names],
             )
 
     def results(self, run_id: str) -> list[dict[str, Any]]:
@@ -171,6 +181,7 @@ class RunConfig:
     run_id: str | None = None
     seed: int = 7
     workers: int = DEFAULT_WORKERS
+    judge: str = "off"  # a model spec, or "off"
 
     @property
     def resolved_run_id(self) -> str:
@@ -184,6 +195,14 @@ class RunOutcome:
     report: dict[str, Any]
     stop_reason: str | None = None
     ran: list[str] = field(default_factory=list)  # question ids attempted in this call
+
+
+def load_manifest(path: Path) -> dict[str, Any] | None:
+    """The data manifest (incident causes for gold root-cause references), if built."""
+    if not path.is_file():
+        return None
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 def load_run_questions(cfg: RunConfig) -> list[Question]:
@@ -205,6 +224,9 @@ def build_report(
         entry = per_category[category[r["question_id"]]]
         entry["total"] += 1
         entry["passed"] += int(r["passed"] or 0)
+        if r.get("judge_passed") is not None:
+            entry["judged"] = entry.get("judged", 0) + 1
+            entry["judge_passed"] = entry.get("judge_passed", 0) + int(r["judge_passed"])
     passed = sum(int(r["passed"] or 0) for r in done)
     n = len(done)
     return {
@@ -214,6 +236,7 @@ def build_report(
         "model_spec": cfg.model_spec,
         "questions_dir": str(cfg.questions_dir),
         "batch": cfg.batch,
+        "judge": cfg.judge,
         "questions": len(questions),
         "counts": dict(Counter(r["status"] for r in rows)),
         "per_category": per_category,
@@ -237,6 +260,8 @@ async def run_benchmark(
     store: RunStore,
     reports_dir: Path,
     semantic: SemanticModel | None = None,
+    judge_provider: LLMProvider | None = None,
+    manifest: dict[str, Any] | None = None,
 ) -> RunOutcome:
     run_id = cfg.resolved_run_id
     set_run_id(run_id)
@@ -253,6 +278,23 @@ async def run_benchmark(
     stop: dict[str, Any] = {}
     ran: list[str] = []
 
+    async def _judge(
+        q: Question, answer: AgentAnswer
+    ) -> tuple[JudgeJSON | None, dict[str, Any] | None]:
+        """The judge layer for a root-cause question, or (None, None) when it does not apply."""
+        if q.category != "root_cause" or judge_provider is None or cfg.judge == "off":
+            return None, None
+        reference = reference_text(q, manifest)
+        if reference is None:
+            return None, {"error": "no reference text"}
+        try:
+            verdict = await judge_root_cause(
+                judge_provider, cfg.judge, q.question, answer, reference
+            )
+        except InvalidLLMOutput:
+            return None, {"error": "invalid_output"}
+        return verdict, verdict.model_dump()
+
     async def one(q: Question) -> None:
         ran.append(q.id)
         try:
@@ -266,6 +308,8 @@ async def run_benchmark(
                 allowed_tables,
                 semantic=semantic,
             )
+            verdict = score(q, result.answer)
+            judged = await _judge(q, result.answer)
         except (DailyLimitReached, BudgetExceeded) as exc:
             stop.setdefault("reason", str(exc))
             stop.setdefault("exit", EXIT_STOPPED)
@@ -279,13 +323,23 @@ async def run_benchmark(
         except TransientLLMError as exc:
             store.save(run_id, q.id, "retry", error=f"transient: {exc}")
             return
-        verdict = score(q, result.answer)
+        judge, judge_info = judged
+        passed = combine(verdict.passed, judge)
+        reason = verdict.reason
+        if judge is not None and not judge.passed:
+            why = "invents a cause" if judge.invents_unsupported_cause else "misses the cause"
+            reason = "; ".join(r for r in (reason, f"judge: {why}") if r)
         store.save(
             run_id,
             q.id,
             "done",
-            passed=verdict.passed,
-            reason=verdict.reason,
+            passed=passed,
+            reason=reason,
+            judge_passed=None if judge is None else judge.passed,
+            judge_json=None
+            if judge_info is None
+            else json.dumps({**judge_info, "rule_passed": verdict.passed}),
+            untraceable_numbers=result.untraceable_numbers,
             answer_json=result.answer.model_dump_json(),
             llm_calls=result.llm_calls,
             input_tokens=result.input_tokens,
@@ -299,7 +353,7 @@ async def run_benchmark(
             extra={
                 "fields": {
                     "question_id": q.id,
-                    "passed": verdict.passed,
+                    "passed": passed,
                     "llm_calls": result.llm_calls,
                     "cost_usd": result.cost_usd,
                     "error": result.error,
@@ -323,7 +377,9 @@ async def run_benchmark(
     else:
         status = "complete"
     store.set_status(run_id, status)
-    report = build_report(cfg, store, questions, int(getattr(provider, "hits", 0)), status)
+    hit_sources = {id(p): p for p in (provider, judge_provider) if p is not None}
+    hits = sum(int(getattr(p, "hits", 0)) for p in hit_sources.values())
+    report = build_report(cfg, store, questions, hits, status)
     reports_dir.mkdir(parents=True, exist_ok=True)
     (reports_dir / f"{run_id}.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"

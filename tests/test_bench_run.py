@@ -218,6 +218,7 @@ def test_cli_run_replay_and_status(
     result = runner.invoke(app, args)
     assert result.exit_code == EXIT_FAILED, result.output
     assert "b0-fixture-scripted-six" in result.output
+    assert "judge: off" in result.output
     assert (tmp_path / "state" / "reports" / "b0-fixture-scripted-six.json").is_file()
     status = runner.invoke(app, ["bench", "status"])
     assert status.exit_code == 0, status.output

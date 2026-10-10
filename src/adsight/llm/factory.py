@@ -83,3 +83,45 @@ def make_provider(
         else:
             inner, limits = AnthropicDirectProvider(client, guard), ANTHROPIC_LIMITS
     return CachedProvider(LimitedProvider(inner, RateLimiter(limits)), cache, mode)
+
+
+class ProviderPool:
+    """One wrapped provider per vendor, shared by every model spec of that vendor (the
+    model travels in each request), so agent and judge calls share caches, limits,
+    budget and Anthropic batch waves."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        batch: bool = False,
+        *,
+        mode: Literal["normal", "replay"] = "normal",
+        script: Script | None = None,
+        client: Any = None,
+        cache: ResponseCache | None = None,
+    ):
+        self.settings, self.batch, self.mode = settings, batch, mode
+        self.script, self.client = script, client
+        self.cache = cache or ResponseCache(settings.llm_cache_path)
+        self.providers: dict[str, CachedProvider] = {}
+
+    def get(self, spec: str) -> CachedProvider:
+        vendor = parse_spec(spec).provider
+        if vendor not in self.providers:
+            self.providers[vendor] = make_provider(
+                spec,
+                self.settings,
+                self.batch,
+                mode=self.mode,
+                script=self.script,
+                client=self.client,
+                cache=self.cache,
+            )
+        return self.providers[vendor]
+
+    @property
+    def hits(self) -> int:
+        return sum(p.hits for p in self.providers.values())
+
+    def close(self) -> None:
+        self.cache.close()

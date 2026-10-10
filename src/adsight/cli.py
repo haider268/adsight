@@ -450,6 +450,9 @@ def bench_run(
         "semantic/demo.yaml"
     ),
     db: DbOption = None,
+    judge: Annotated[
+        str, typer.Option("--judge", help="Model spec of the root-cause judge, or off.")
+    ] = "off",
 ) -> None:
     """Run (or resume) a benchmark: score every effective question and write a report.
 
@@ -459,9 +462,9 @@ def bench_run(
 
     from adsight.agent.context import model_tables, schema_card
     from adsight.architectures import ARCHITECTURES
-    from adsight.bench_run import RunConfig, RunStore, run_benchmark
+    from adsight.bench_run import RunConfig, RunStore, load_manifest, run_benchmark
     from adsight.generate.context import build_context
-    from adsight.llm.factory import make_provider
+    from adsight.llm.factory import ProviderPool
     from adsight.semantic.model import load_model
     from adsight.sql_safety import open_agent_connection
 
@@ -478,14 +481,15 @@ def bench_run(
         err_console.print(f"no questions.jsonl in {questions_dir}")
         raise typer.Exit(2)
     sem = load_model(semantic)
-    provider = make_provider(
-        model,
+    pool = ProviderPool(
         settings,
         batch,
         mode="replay" if replay else "normal",
-        script=[] if model.startswith("fixture:") else None,
+        script=[] if model.startswith("fixture:") or judge.startswith("fixture:") else None,
     )
-    cfg = RunConfig(questions_dir, arch, model, batch, limit, run_id, settings.seed)
+    provider = pool.get(model)
+    judge_provider = None if judge == "off" else pool.get(judge)
+    cfg = RunConfig(questions_dir, arch, model, batch, limit, run_id, settings.seed, judge=judge)
     store = RunStore(settings.runs_db_path)
     con = open_agent_connection(path)
     try:
@@ -500,12 +504,14 @@ def bench_run(
                 store,
                 settings.reports_dir,
                 semantic=sem,
+                judge_provider=judge_provider,
+                manifest=load_manifest(settings.data_dir / "manifest.json"),
             )
         )
     finally:
         con.close()
         store.close()
-        provider.cache.close()
+        pool.close()
 
     report = outcome.report
     table = Table(title=f"{outcome.run_id} ({report['status']})")
@@ -521,6 +527,7 @@ def bench_run(
         f"mean tokens {report['mean_tokens']}, total cost ${report['total_cost_usd']:.4f}, "
         f"cache hits {report['cache_hits']}, counts {report['counts']}"
     )
+    console.print(f"judge: {report['judge']}")
     console.print(f"report: {settings.reports_dir / (outcome.run_id + '.json')}")
     if outcome.stop_reason:
         err_console.print(f"STOPPED: {outcome.stop_reason}")
