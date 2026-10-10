@@ -90,14 +90,20 @@ def test_card_is_stable_complete_and_short(
     model: SemanticModel, con: duckdb.DuckDBPyConnection, card: str
 ) -> None:
     assert schema_card(model, build_context(model, con), con) == card
-    assert len(card) < 7500
+    assert len(card) < 12000
+    for level in ("accounts", "campaigns", "ad_sets", "ads"):
+        names = [r[0] for r in con.execute(f"SELECT name FROM {level} ORDER BY 1").fetchall()]
+        listed = next(line for line in card.splitlines() if line.startswith(f"{level[:-1]} ("))
+        assert listed.startswith(f"{level[:-1]} ({len(names)}): ")
+        for name in names:
+            assert f'"{name}"' in listed, (level, name)
+    assert "more; query the" not in card
     assert (
         'account (3): "Restore Regenerative Clinic", "Lumen Med Spa", "Northside Home Services"'
         in card
     )
     for line in ("campaign (9): ", "ad_set (18): ", 'ad (54): "Knee 45-65 Broad | Video", '):
         assert line in card, line
-    assert card.count(", ...") >= 3
     assert (
         "Names in double quotes in a question are exact names from the data: filter on the "
         "label column with that exact string." in card
@@ -276,3 +282,25 @@ def test_system_text_is_identical_across_questions(
     systems = {r.system for r in provider.requests}
     assert len(provider.requests) == 6 and len(systems) == 1
     assert next(iter(systems)).endswith(card)
+
+
+def test_long_entity_lists_are_cut_at_20(tmp_path: Path) -> None:
+    from adsight.agent.context import entity_line
+    from adsight.semantic.model import Level
+
+    path = tmp_path / "many.duckdb"
+    db = duckdb.connect(str(path))
+    db.execute(
+        "CREATE TABLE items AS SELECT printf('K%03d', i) AS k, printf('Item %03d', i) AS n "
+        "FROM range(150) r(i)"
+    )
+    db.close()
+    c = open_agent_connection(path)
+    try:
+        flat = load_model(FLAT_YAML)
+        line = entity_line(flat, Level(name="item", table="items", key="k", label="n"), c)
+    finally:
+        c.close()
+    assert line.startswith('item (150): "Item 000", "Item 001", ')
+    assert line.count('"Item ') == 20 and '"Item 019"' in line and '"Item 020"' not in line
+    assert line.endswith("... and 130 more; query the items table to check a name.")

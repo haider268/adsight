@@ -13,7 +13,8 @@ from adsight.semantic.sql import from_clause
 from adsight.sql_safety import query
 
 MAX_ATTRIBUTE_VALUES = 12
-MAX_ENTITY_EXAMPLES = 5
+MAX_LISTED_ENTITIES = 100  # list every name up to this many
+LONG_LIST_SHOWN = 20  # above it, show this many and say how to check the rest
 
 RULES = (
     "Use only the tables and columns listed. Write DuckDB SQL. Read-only: SELECT only.\n"
@@ -85,19 +86,24 @@ def _values(con: duckdb.DuckDBPyConnection, table: str, column: str) -> str:
 
 
 def entity_line(model: SemanticModel, level: Level, con: duckdb.DuckDBPyConnection) -> str:
-    """`ad (54): "first label", ...`: the level's entity count and its first examples in
-    key order (labels, or keys when the level has no label)."""
+    """`ad (54): "label", ...`: the level's entity count and EVERY name in key order
+    (labels, or keys when the level has no label) when there are at most 100; otherwise
+    the first 20 and a note saying how many more there are and where to look."""
     key = _q(level.key)
     shown = _q(level.label) if level.label else key
     rows = query(
         con,
-        f"SELECT {key}, MIN(CAST({shown} AS VARCHAR)), COUNT(*) OVER () FROM {_q(level.table)} "
-        f"WHERE {key} IS NOT NULL GROUP BY {key} ORDER BY {key} LIMIT {MAX_ENTITY_EXAMPLES + 1}",
+        f"SELECT {key}, MIN(CAST({shown} AS VARCHAR)) FROM {_q(level.table)} "
+        f"WHERE {key} IS NOT NULL GROUP BY {key} ORDER BY {key}",
     )
-    count = int(rows[0][2]) if rows else 0
-    examples = ", ".join(f'"{r[1]}"' for r in rows[:MAX_ENTITY_EXAMPLES])
-    more = ", ..." if count > MAX_ENTITY_EXAMPLES else ""
-    return f"{level.name} ({count}): {examples}{more}"
+    count = len(rows)
+    if count <= MAX_LISTED_ENTITIES:
+        return f"{level.name} ({count}): " + ", ".join(f'"{r[1]}"' for r in rows)
+    first = ", ".join(f'"{r[1]}"' for r in rows[:LONG_LIST_SHOWN])
+    return (
+        f"{level.name} ({count}): {first} ... and {count - LONG_LIST_SHOWN} more; "
+        f"query the {level.table} table to check a name."
+    )
 
 
 def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyConnection) -> str:
@@ -122,7 +128,7 @@ def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyC
         lines.append(f"{table}{role}: {items}")
 
     lines += ["", "HIERARCHY: " + " > ".join(lv.name for lv in model.levels)]
-    lines.append("ENTITIES (count: first names in key order)")
+    lines.append("ENTITIES (count: names in key order)")
     lines += [entity_line(model, lv, con) for lv in model.levels]
     lines.append("JOIN (all levels):")
     lines += from_clause(model, [lv.name for lv in model.levels], []).splitlines()

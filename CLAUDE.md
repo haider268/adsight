@@ -79,6 +79,7 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   INTO, table functions, file and environment functions, and unparsable SQL.
 - `run_sql` runs the normalised SQL with a row cap and a timeout and never raises (errors
   come back in `SqlResult.error`), on `open_agent_connection` (read-only, no file access).
+- run_sql uses its own cursor per call; never execute on a shared connection.
 
 ## LLM layer
 
@@ -89,17 +90,17 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   (`.adsight/llm_cache.sqlite`) means a re-run never pays twice; `--replay` never calls out.
 - Limits: token buckets per provider (Groq 30 req/min, 8000 tok/min; Gemini 15, 250000).
   Retries: full jitter, base 2 s, cap 60 s, 5 attempts.
-- Batching: with `--batch` all questions run at once, so each step's calls flush as one
-  Anthropic batch (lock-step waves). Batches are recorded before submit and re-attached on
-  start-up, so a stopped run never pays twice.
+- Batching: with `--batch` each step's calls flush as one Anthropic batch (lock-step waves);
+  batches are recorded before submit and re-attached on start-up, so nothing pays twice.
 - Budget guard: `ADSIGHT_ANTHROPIC_BUDGET_USD` (default 0 = no Anthropic call) is checked
   against the summed cost of stored Anthropic responses before every request.
-- No live calls in tests, ever: vendor clients are replaced by small fake classes.
 
 ## Agents
 
-- System prompt = role + schema card (typed columns, joins, entity counts and first 5
-  names, attribute values, metric SQL, rules); the same for every call, so it caches.
+- System prompt = role + schema card (typed columns, joins, attribute values, metric SQL,
+  rules); the same for every call, so it caches.
+- The card lists every entity name per level (up to 100; above that the first 20 and a
+  note to query the table), so the model never mistakes examples for the full list.
 - B0 (max 2 calls): `plan` -> `finish_direct` | `execute` -> `answer`.
 - B1 (max 6): `think` -> `act` -> `think` ... -> final; the 6th think must answer.
 - B2 (max 2): `plan` (1-4 SQL steps) -> `finish_direct` | `execute` -> `check` -> `answer`.
@@ -108,7 +109,7 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   change log, before/after metrics, daily series, weekly frequency; never imports
   `adsight.generate`) -> `synthesize` -> `verify_numbers` -> one `resynthesize` if a
   number is untraceable (RunResult.untraceable_numbers).
-- Invalid output is retried once with salt "<run salt>:retry1"; twice is "invalid_output".
+- Invalid output is retried once (salt "<run salt>:retry1"); twice is "invalid_output".
 
 ## Running the benchmark
 
@@ -119,8 +120,7 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 - Re-running a run id skips "done" questions. Exit 0 done; 3 budget or daily limit; 4 a
   batch outlasted `--wait-minutes` (it stays recorded; the next run re-attaches it and
   replays every finished call from the cache for free). Run it again to continue.
-- `--salt` makes repeat runs independent samples; `--sample N` spreads N questions over
-  the categories (seeded).
+- `--salt`: repeat runs are independent samples; `--sample N`: N questions over categories.
 - Judge: with `--judge <spec>` a root-cause answer passes only if the rules pass AND the
   judge says it names the true cause (the reference_summary, or the manifest causes for
   gold questions) and invents none. `results.judge_passed`, `judge_json`; default "off".
@@ -145,5 +145,5 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   `git config --local`. No `Co-Authored-By` lines and no Claude/Anthropic trailers.
 - No secrets in any file. Keys live only in the git-ignored `.env`; `.env.example` ships
   blank placeholders. No real people and no real ad account data.
-- Tests are offline: no network, no sockets. Tests that need a key carry the `live`
-  marker and are skipped by default.
+- Tests are offline: no network, no sockets, no live LLM call (vendor clients are fakes).
+  Tests that need a key carry the `live` marker and are skipped by default.
