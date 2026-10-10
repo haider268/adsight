@@ -15,6 +15,7 @@ from adsight.benchmark.questions import (
     RootCauseScoring,
     effective_questions,
     load_questions,
+    save_questions,
 )
 from adsight.benchmark.score import score
 from adsight.cli import app
@@ -268,6 +269,47 @@ def test_review_command_flow(generated: tuple[Path, GenerateReport], tmp_path: P
     assert again.exit_code == 1
     unknown = runner.invoke(app, ["bench", "review", str(folder), "--approve", "RC99"])
     assert unknown.exit_code == 1
+
+
+def test_reviews_survive_regeneration(
+    generated: tuple[Path, GenerateReport], demo_con: duckdb.DuckDBPyConnection, tmp_path: Path
+) -> None:
+    out, _ = generated
+    folder = tmp_path / "regen"
+    folder.mkdir()
+    questions = load_questions(out / "questions.jsonl")
+    pending = [q.id for q in questions if q.review == "pending"]
+    kept, edited = pending[0], pending[1]
+    decided = [
+        q.model_copy(update={"review": "approved"})
+        if q.id == kept
+        else q.model_copy(update={"review": "approved", "question": q.question + " (old)"})
+        if q.id == edited
+        else q
+        for q in questions
+    ]
+    save_questions(decided, folder / "questions.jsonl")
+    report = generate_benchmark(load_model(DEMO_YAML), demo_con, 7, folder)
+    states = {q.id: q.review for q in load_questions(folder / "questions.jsonl")}
+    assert states[kept] == "approved"
+    assert states[edited] == "pending"
+    assert report.root_cause["approved"] == 1
+    assert report.root_cause["rejected"] == 0
+    assert report.root_cause["pending_review"] == len(pending) - 1
+
+
+def test_committed_demo_regenerates_byte_identical(
+    demo_con: duckdb.DuckDBPyConnection, tmp_path: Path
+) -> None:
+    committed = REPO_ROOT / "benchmark" / "generated" / "adsight-demo"
+    folder = tmp_path / "demo"
+    folder.mkdir()
+    (folder / "questions.jsonl").write_bytes((committed / "questions.jsonl").read_bytes())
+    generate_benchmark(load_model(DEMO_YAML), demo_con, 7, folder)
+    for name in ("questions.jsonl", "lint_report.json", "context.json"):
+        assert (folder / name).read_bytes() == (committed / name).read_bytes(), name
+    for sql in (committed / "reference_sql").glob("*.sql"):
+        assert (folder / "reference_sql" / sql.name).read_bytes() == sql.read_bytes(), sql.name
 
 
 # --- a dataset with no change log and no reach ---------------------------------------

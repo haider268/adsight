@@ -7,13 +7,18 @@ import json
 import math
 import random
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 import duckdb
 
-from adsight.benchmark.questions import PREFIX_BY_CATEGORY, Question, save_questions
+from adsight.benchmark.questions import (
+    PREFIX_BY_CATEGORY,
+    Question,
+    load_questions,
+    save_questions,
+)
 from adsight.benchmark.refs import compute_expected
 from adsight.generate.causes import DECOY_WINDOW_DAYS, Cause, detect_causes
 from adsight.generate.context import build_context, write_context
@@ -262,6 +267,35 @@ def select_root_causes(
     return chosen
 
 
+ReviewKey = tuple[str | None, str, str]
+
+
+def _review_key(template: str | None, params: dict[str, str], question: str) -> ReviewKey:
+    return template, json.dumps(params, sort_keys=True), question
+
+
+def prior_reviews(path: Path) -> dict[ReviewKey, str]:
+    """Human decisions (approved / rejected) already recorded in a questions.jsonl, keyed by
+    template, params and question text. A missing file has none."""
+    if not path.is_file():
+        return {}
+    return {
+        _review_key(q.template, q.params, q.question): q.review
+        for q in load_questions(path)
+        if q.review in ("approved", "rejected")
+    }
+
+
+def _carry_reviews(cands: list[Candidate], prior: dict[ReviewKey, str]) -> list[Candidate]:
+    """A pending candidate identical to an already decided question keeps that decision."""
+    return [
+        replace(c, review=prior.get(_review_key(c.template, c.params, c.question), c.review))
+        if c.review == "pending"
+        else c
+        for c in cands
+    ]
+
+
 def _enough(category: str, accepted: list[Candidate], directions: dict[int, str]) -> bool:
     if category != "trend":
         return len(accepted) >= TARGETS[category]
@@ -334,8 +368,9 @@ def generate_benchmark(
         for c in root_cause_candidates(env, detection.causes, detection.decoys, DECOY_WINDOW_DAYS)
         if linter.check(c, ctx)
     ]
-    selected["root_cause"] = select_root_causes(
-        rc_candidates, detection.causes, seed, TARGETS["root_cause"]
+    selected["root_cause"] = _carry_reviews(
+        select_root_causes(rc_candidates, detection.causes, seed, TARGETS["root_cause"]),
+        prior_reviews(out_dir / "questions.jsonl"),
     )
     rc = selected["root_cause"]
     report.root_cause = {
@@ -352,6 +387,8 @@ def generate_benchmark(
             for angle in sorted({c.template for c in rc_candidates})
         },
         "pending_review": sum(1 for c in rc if c.review == "pending"),
+        "approved": sum(1 for c in rc if c.review == "approved"),
+        "rejected": sum(1 for c in rc if c.review == "rejected"),
     }
 
     # 4. ambiguous and unanswerable: seeded picks from what this dataset allows
