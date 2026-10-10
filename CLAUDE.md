@@ -35,7 +35,7 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 | `src/adsight/agent/` | Schema card, answer schemas, prompts, result checks, diagnose tool, number check. |
 | `src/adsight/architectures/` | B0-B4 graphs and `run_question`. |
 | `src/adsight/bench_run.py`, `judge.py`, `plans.py` | Resumable runner, root-cause judge, run plans / ticks / export. |
-| `benchmark/plans/`, `.github/workflows/bench-tick.yml` | Run plans and the scheduled tick workflow. |
+| `benchmark/plans/`, `.github/workflows/` | Run plans; the scheduled tick and manual export workflows. |
 | `semantic/demo.yaml`, `semantic/flat-demo.yaml` | Mappings drafted by `adsight inspect` for the two demo databases. |
 | `benchmark/questions.jsonl`, `benchmark/reference_sql/` | The hand-written GOLD SET (100 questions). A test fixture only; never edit. |
 | `benchmark/generated/adsight-demo/`, `adsight-flat-demo/` | Published benchmarks: questions, reference SQL, context, lint report. |
@@ -68,9 +68,9 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   Metrics are defined once in `semantic/metrics.py`.
 - `bench generate` reads any database through its model; same seed, same bytes. Linter
   rules R1-R8; shortfalls go to `lint_report.json` (`--strict` exits 1).
-- Root causes start from a logged material change or a strict detector, never a raw jump.
-  Detector questions start `review: pending`; `bench review` records the human decision,
-  which survives regeneration. Runs use review None or approved.
+- Root causes start from a logged change or a strict detector, never a raw jump. Logged
+  questions state their windows ("(16 to 29 March 2026), compared with the two weeks
+  before"). Detector questions start `review: pending`; reviews survive regeneration.
 
 ## SQL safety
 
@@ -97,10 +97,10 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 
 ## Agents
 
-- System prompt = role + schema card (typed columns, joins, attribute values, metric SQL,
-  rules); the same for every call, so it caches.
-- The card lists every entity name per level (up to 100; above that the first 20 and a
-  note to query the table), so the model never mistakes examples for the full list.
+- System prompt = role + schema card: typed columns, joins, every entity name per level (up
+  to 100), attribute values, the change log's entity and change types, metric SQL, rules.
+  It is the same for every call, so it caches. A rule says how to answer a why question
+  (period vs the period before, the change log, the inputs) and never to refuse one.
 - B0 (max 2 calls): `plan` -> `finish_direct` | `execute` -> `answer`.
 - B1 (max 6): `think` -> `act` -> `think` ... -> final; the 6th think must answer.
 - B2 (max 2): `plan` (1-4 SQL steps) -> `finish_direct` | `execute` -> `check` -> `answer`.
@@ -135,9 +135,9 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 - `adsight bench export --plan <yaml> --out benchmark/results/<plan>/` writes per job
   `report.json` and `cassette.jsonl.gz` (every response its results used) plus
   `summary.json`; `bench run --replay --cassette <file>` reproduces a job offline.
-- `.github/workflows/bench-tick.yml` runs a tick every 30 minutes, state kept in the
-  Actions cache. Switches: secret `ANTHROPIC_API_KEY`, variable `ANTHROPIC_BUDGET_USD`,
-  variable `BENCH_ENABLED` (`true` to run, anything else to stop). It never commits.
+- `bench-tick.yml` runs a tick every 30 min (state in the Actions cache). Switches: secret
+  `ANTHROPIC_API_KEY`, variables `ANTHROPIC_BUDGET_USD` and `BENCH_ENABLED` (`true` runs).
+  `bench-export.yml` (manual, no secrets) uploads a plan's export as `bench-results`.
 
 ## Rules
 

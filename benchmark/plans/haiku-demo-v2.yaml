@@ -1,0 +1,90 @@
+# Second full run, after the M4d fixes (schema card change-log line and why rule,
+# root-cause comparison windows). Same jobs as haiku-demo.yaml, ids suffixed -v2 so
+# results never mix with the first run.
+# The Haiku benchmark: all five architectures on the generated demo set, B0 and B4 on
+# the hand-written gold set, and two salted B4 repeats on a 20-question sample to
+# measure run-to-run variance. Run it one tick at a time with `adsight bench resume`.
+name: haiku-demo-v2
+budget_usd: 25            # hard cap for this plan, checked with ADSIGHT_ANTHROPIC_BUDGET_USD (the lower wins)
+jobs:
+  - id: demo-b0-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b0
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: demo-b1-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b1
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: demo-b2-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b2
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: demo-b3-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b3
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: demo-b4-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b4
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: gold-b0-v2
+    questions_dir: benchmark
+    semantic: semantic/demo.yaml
+    arch: b0
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: gold-b4-v2
+    questions_dir: benchmark
+    semantic: semantic/demo.yaml
+    arch: b4
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: null
+    salt: ""
+  - id: var-b4-1-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b4
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 20
+    salt: "rep1"
+  - id: var-b4-2-v2
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b4
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 20
+    salt: "rep2"

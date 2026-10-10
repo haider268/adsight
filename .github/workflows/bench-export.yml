@@ -1,0 +1,58 @@
+# Manual export of a finished benchmark plan.
+#
+# Run it by hand (Actions > bench-export > Run workflow) once bench-tick has finished a
+# plan. It restores the benchmark state that bench-tick saved in the Actions cache (and
+# fails if there is none), then writes each job's report, its response cassette and
+# summary.json, and uploads them as the artifact "bench-results". It makes no LLM calls,
+# uses no secrets, and never commits or pushes: download the artifact and commit the
+# results yourself.
+
+name: bench-export
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: Run plan YAML
+        required: true
+        default: benchmark/plans/haiku-demo-v2.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAN: ${{ inputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Build the demo database
+        run: uv run adsight data
+
+      - name: Restore benchmark state
+        uses: actions/cache/restore@v4
+        with:
+          path: .adsight
+          key: bench-state-${{ github.run_id }}
+          restore-keys: bench-state-
+          fail-on-cache-miss: true
+
+      - name: Export
+        run: uv run adsight bench export --plan "$PLAN" --out out/results
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: out/results
+          retention-days: 30

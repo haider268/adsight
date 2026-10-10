@@ -492,3 +492,36 @@ def test_cli_cassette_needs_replay(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     args += ["--model", "fixture:scripted", "--cassette", str(tmp_path / "c.jsonl.gz")]
     result = runner.invoke(app, args)
     assert result.exit_code == 2
+
+
+def test_v2_plan_mirrors_the_first() -> None:
+    first = load_plan(PLANS / "haiku-demo.yaml")
+    v2 = load_plan(PLANS / "haiku-demo-v2.yaml")
+    assert v2.name == "haiku-demo-v2" and len(v2.jobs) == 9
+    assert all(j.id.endswith("-v2") for j in v2.jobs)
+    assert [j.model_copy(update={"id": j.id[:-3]}) for j in v2.jobs] == first.jobs
+    assert v2.budget_usd == first.budget_usd
+
+
+def test_export_workflow_is_manual_and_secret_free() -> None:
+    path = REPO_ROOT / ".github" / "workflows" / "bench-export.yml"
+    text = path.read_text(encoding="utf-8")
+    data = yaml.safe_load(text)
+    triggers = data.get("on", data.get(True))
+    assert list(triggers) == ["workflow_dispatch"]
+    default = triggers["workflow_dispatch"]["inputs"]["plan"]["default"]
+    assert default == "benchmark/plans/haiku-demo-v2.yaml"
+    steps = {s.get("name", s.get("uses")): s for s in data["jobs"]["export"]["steps"]}
+    restore = steps["Restore benchmark state"]
+    assert restore["uses"] == "actions/cache/restore@v4"
+    assert restore["with"]["fail-on-cache-miss"] is True
+    assert restore["with"]["restore-keys"] == "bench-state-"
+    assert steps["Export"]["run"] == 'uv run adsight bench export --plan "$PLAN" --out out/results'
+    upload = steps["Upload results"]["with"]
+    assert (upload["name"], upload["path"], upload["retention-days"]) == (
+        "bench-results",
+        "out/results",
+        30,
+    )
+    assert "secrets." not in text
+    assert "git push" not in text and "git commit" not in text
