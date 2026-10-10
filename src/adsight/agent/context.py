@@ -26,7 +26,17 @@ RULES = (
     "Names in double quotes in a question are exact names from the data: filter on the "
     "label column with that exact string.\n"
     "Ask a clarifying question only when the answer depends on a choice you would have to "
-    "guess, such as which account, metric or period; otherwise answer."
+    "guess, such as which account, metric or period; otherwise answer.\n"
+    "A 'why' question asks for the most likely cause the data supports. Compare the metric "
+    "in the period with the period before; check the change log for changes to the entity, "
+    "its parents and its children; and check the inputs (spend, impressions, clicks, "
+    "conversions per click). Name the cause the evidence supports, or say plainly that no "
+    "logged change explains it and what the data shows instead. Do not refuse a why question "
+    "because the data has no labelled causes."
+)
+CHANGE_VALUES_NOTE = (
+    "old_value and new_value hold the value before and after the change, as text (for "
+    "example budgets, audiences or statuses)."
 )
 
 
@@ -85,6 +95,24 @@ def _values(con: duckdb.DuckDBPyConnection, table: str, column: str) -> str:
     return " | ".join(values[:MAX_ATTRIBUTE_VALUES]) + (" | ..." if more else "")
 
 
+def _change_log_detail(model: SemanticModel, con: duckdb.DuckDBPyConnection) -> str:
+    """What the change log records: its entity types and change types (distinct, sorted)."""
+    log = model.change_log
+    assert log is not None
+    parts = []
+    for role, column in (("entity types", log.entity_type), ("change types", log.change_type)):
+        if column:
+            rows = query(
+                con,
+                f"SELECT DISTINCT CAST({_q(column)} AS VARCHAR) AS v FROM {_q(log.table)} "
+                f"WHERE {_q(column)} IS NOT NULL ORDER BY v",
+            )
+            parts.append(f"{role}: " + ", ".join(str(r[0]) for r in rows))
+    if log.old_value or log.new_value:
+        parts.append(CHANGE_VALUES_NOTE)
+    return "".join(f"; {p}" for p in parts)
+
+
 def entity_line(model: SemanticModel, level: Level, con: duckdb.DuckDBPyConnection) -> str:
     """`ad (54): "label", ...`: the level's entity count and EVERY name in key order
     (labels, or keys when the level has no label) when there are at most 100; otherwise
@@ -125,6 +153,8 @@ def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyC
         elif model.change_log is not None and table == model.change_log.table:
             role = " [change log]"
         items = ", ".join(f"{c} {types.get(c, '?')}: {what}" for c, what in columns.items())
+        if model.change_log is not None and table == model.change_log.table:
+            items += _change_log_detail(model, con)
         lines.append(f"{table}{role}: {items}")
 
     lines += ["", "HIERARCHY: " + " > ".join(lv.name for lv in model.levels)]

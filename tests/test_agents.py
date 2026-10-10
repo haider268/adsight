@@ -139,7 +139,7 @@ def test_flat_card_has_no_reach_or_change_log(tmp_path: Path) -> None:
     finally:
         c.close()
     assert "reach" not in text and "frequency" not in text
-    assert "change log" not in text and "events_log" not in text
+    assert "[change log]" not in text and "events_log" not in text and "change types" not in text
     assert "perf" in text and "ad_group" in text
     assert "campaign (3): " in text and "ad_set (6): " in text
 
@@ -304,3 +304,29 @@ def test_long_entity_lists_are_cut_at_20(tmp_path: Path) -> None:
     assert line.startswith('item (150): "Item 000", "Item 001", ')
     assert line.count('"Item ') == 20 and '"Item 019"' in line and '"Item 020"' not in line
     assert line.endswith("... and 130 more; query the items table to check a name.")
+
+
+def test_card_explains_the_change_log_and_why_questions(
+    model: SemanticModel, con: duckdb.DuckDBPyConnection, card: str
+) -> None:
+    line = next(x for x in card.splitlines() if x.startswith("events_log [change log]: "))
+    types = [r[0] for r in con.execute("SELECT DISTINCT change_type FROM events_log").fetchall()]
+    assert sorted(types) == ["audience_edit", "budget_change", "launched", "paused"]
+    assert "change types: audience_edit, budget_change, launched, paused" in line
+    assert "entity types: ad, ad_set, campaign" in line
+    assert (
+        "old_value and new_value hold the value before and after the change, as text (for "
+        "example budgets, audiences or statuses)." in line
+    )
+    assert "55.00" not in card  # no example rows
+    assert (
+        "A 'why' question asks for the most likely cause the data supports. Compare the metric "
+        "in the period with the period before; check the change log for changes to the entity, "
+        "its parents and its children; and check the inputs (spend, impressions, clicks, "
+        "conversions per click). Name the cause the evidence supports, or say plainly that no "
+        "logged change explains it and what the data shows instead. Do not refuse a why question "
+        "because the data has no labelled causes." in card
+    )
+    assert card.endswith("because the data has no labelled causes.")
+    assert schema_card(model, build_context(model, con), con) == card
+    assert len(card) < 12000
