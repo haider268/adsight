@@ -1,0 +1,92 @@
+# Scheduled benchmark ticks: runs a plan with the laptop off, 30 minutes at a time.
+#
+# To start:  add the repository secret ANTHROPIC_API_KEY, set the repository variable
+#            ANTHROPIC_BUDGET_USD (the hard spend cap; the plan's own budget_usd also
+#            applies, the lower wins), then set the repository variable BENCH_ENABLED=true.
+# To stop:   set BENCH_ENABLED=false. While it is not 'true' every scheduled run is skipped
+#            at no cost.
+#
+# Each tick restores .adsight (LLM cache, recorded batches, run results) from the Actions
+# cache, re-attaches any batch still running, continues every unfinished job, and saves the
+# state again. Exit 0 = plan complete, 3 = budget or daily limit reached, 4 = waiting on a
+# batch; all three are a successful tick. Nothing here commits or pushes.
+
+name: bench-tick
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: Run plan YAML
+        required: true
+        default: benchmark/plans/haiku-demo.yaml
+
+concurrency:
+  group: bench-tick
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    if: vars.BENCH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAN: ${{ inputs.plan || 'benchmark/plans/haiku-demo.yaml' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Build the demo database
+        run: uv run adsight data
+
+      - name: Restore benchmark state
+        uses: actions/cache/restore@v4
+        with:
+          path: .adsight
+          key: bench-state-${{ github.run_id }}
+          restore-keys: bench-state-
+
+      - name: Run one tick
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ADSIGHT_ANTHROPIC_BUDGET_USD: ${{ vars.ANTHROPIC_BUDGET_USD || '0' }}
+        run: |
+          set +e
+          uv run adsight bench resume --plan "$PLAN" --wait-minutes 20
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ] || [ "$code" -eq 3 ] || [ "$code" -eq 4 ]; then
+            echo "tick finished with exit code $code"
+            exit 0
+          fi
+          echo "tick failed with exit code $code"
+          exit "$code"
+
+      - name: Save benchmark state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .adsight
+          key: bench-state-${{ github.run_id }}
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-reports
+          path: |
+            .adsight/reports
+            .adsight/progress.log
+          retention-days: 30
+          if-no-files-found: ignore

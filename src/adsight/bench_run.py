@@ -7,6 +7,7 @@ questions not yet run are marked "retry", and the caller exits 3.
 
 import asyncio
 import json
+import random
 import sqlite3
 from collections import Counter
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from adsight.benchmark.questions import Question, effective_questions, load_ques
 from adsight.benchmark.score import score
 from adsight.judge import JudgeJSON, combine, judge_root_cause, reference_text
 from adsight.llm.base import (
+    BatchPending,
     BudgetExceeded,
     CacheMiss,
     DailyLimitReached,
@@ -30,12 +32,15 @@ from adsight.llm.base import (
 )
 from adsight.llm.cache import now_iso
 from adsight.llm.factory import parse_spec
+from adsight.llm.types import LLMRequest, LLMResponse, request_key
 from adsight.log import get_logger, set_run_id
 from adsight.semantic.model import SemanticModel
 
 EXIT_OK = 0
 EXIT_FAILED = 1
 EXIT_STOPPED = 3  # a clean, resumable stop: daily limit or budget
+EXIT_WAITING = 4  # tick mode: waiting on an Anthropic batch (or not finished yet)
+STATUS_BY_EXIT = {EXIT_STOPPED: "stopped", EXIT_WAITING: "waiting", EXIT_FAILED: "failed"}
 DEFAULT_WORKERS = 8
 
 RUNS_SCHEMA = """
@@ -64,6 +69,12 @@ CREATE TABLE IF NOT EXISTS results (
     error TEXT,
     finished_at TEXT NOT NULL,
     PRIMARY KEY (run_id, question_id)
+);
+CREATE TABLE IF NOT EXISTS calls (
+    run_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    PRIMARY KEY (run_id, question_id, key)
 );
 """
 
@@ -145,6 +156,23 @@ class RunStore:
                 [row[n] for n in names],
             )
 
+    def save_keys(self, run_id: str, question_id: str, keys: list[str]) -> None:
+        """The LLM cache keys one question's answer (and judge) used."""
+        with self.con:
+            self.con.executemany(
+                "INSERT OR IGNORE INTO calls VALUES (?, ?, ?)",
+                [(run_id, question_id, k) for k in keys],
+            )
+
+    def call_keys(self, run_id: str) -> list[str]:
+        """Cache keys behind every done result of a run."""
+        rows = self.con.execute(
+            "SELECT DISTINCT c.key FROM calls c JOIN results r USING (run_id, question_id) "
+            "WHERE c.run_id = ? AND r.status = 'done' ORDER BY c.key",
+            (run_id,),
+        ).fetchall()
+        return [str(r[0]) for r in rows]
+
     def results(self, run_id: str) -> list[dict[str, Any]]:
         cursor = self.con.execute(
             "SELECT * FROM results WHERE run_id = ? ORDER BY question_id", (run_id,)
@@ -182,6 +210,8 @@ class RunConfig:
     seed: int = 7
     workers: int = DEFAULT_WORKERS
     judge: str = "off"  # a model spec, or "off"
+    salt: str = ""  # run-level salt: repeat runs are independent samples
+    sample: int | None = None  # N questions spread over the categories
 
     @property
     def resolved_run_id(self) -> str:
@@ -205,9 +235,45 @@ def load_manifest(path: Path) -> dict[str, Any] | None:
     return data
 
 
+def stratified_sample(questions: list[Question], n: int, seed: int) -> list[Question]:
+    """N questions spread over the categories: each category shuffled by the seed, then
+    taken round-robin over the categories in file order. Returned in file order."""
+    by_category: dict[str, list[Question]] = {}
+    for q in questions:
+        by_category.setdefault(q.category, []).append(q)
+    for category, members in by_category.items():
+        random.Random(f"{seed}:sample:{category}").shuffle(members)
+    picked: set[str] = set()
+    while len(picked) < min(n, len(questions)):
+        for members in by_category.values():
+            if members and len(picked) < n:
+                picked.add(members.pop(0).id)
+    return [q for q in questions if q.id in picked]
+
+
 def load_run_questions(cfg: RunConfig) -> list[Question]:
+    """Effective questions (review None or approved); --sample N spreads N over the
+    categories, --limit N takes the first N."""
     questions = effective_questions(load_questions(cfg.questions_dir / "questions.jsonl"))
+    if cfg.sample is not None:
+        questions = stratified_sample(questions, cfg.sample, cfg.seed)
     return questions[: cfg.limit] if cfg.limit is not None else questions
+
+
+def is_complete(store: RunStore, cfg: RunConfig) -> bool:
+    wanted = {q.id for q in load_run_questions(cfg)}
+    return wanted <= store.done_ids(cfg.resolved_run_id)
+
+
+class _Recorder:
+    """Passes calls through, remembering each request key (for cassettes)."""
+
+    def __init__(self, inner: LLMProvider, keys: list[str]):
+        self.inner, self.keys = inner, keys
+
+    async def complete(self, req: LLMRequest, salt: str = "") -> LLMResponse:
+        self.keys.append(request_key(req, salt))
+        return await self.inner.complete(req, salt)
 
 
 def build_report(
@@ -262,7 +328,10 @@ async def run_benchmark(
     semantic: SemanticModel | None = None,
     judge_provider: LLMProvider | None = None,
     manifest: dict[str, Any] | None = None,
+    stop: dict[str, Any] | None = None,
 ) -> RunOutcome:
+    """Run every question not yet done. `stop` may be shared by concurrent jobs: once any
+    job hits a limit, a budget or a pending batch, no job starts another question."""
     run_id = cfg.resolved_run_id
     set_run_id(run_id)
     questions = load_run_questions(cfg)
@@ -275,21 +344,21 @@ async def run_benchmark(
     queue: asyncio.Queue[Question] = asyncio.Queue()
     for q in todo:
         queue.put_nowait(q)
-    stop: dict[str, Any] = {}
+    stop = {} if stop is None else stop
     ran: list[str] = []
 
     async def _judge(
-        q: Question, answer: AgentAnswer
+        q: Question, answer: AgentAnswer, judge_with: LLMProvider | None
     ) -> tuple[JudgeJSON | None, dict[str, Any] | None]:
         """The judge layer for a root-cause question, or (None, None) when it does not apply."""
-        if q.category != "root_cause" or judge_provider is None or cfg.judge == "off":
+        if q.category != "root_cause" or judge_with is None or cfg.judge == "off":
             return None, None
         reference = reference_text(q, manifest)
         if reference is None:
             return None, {"error": "no reference text"}
         try:
             verdict = await judge_root_cause(
-                judge_provider, cfg.judge, q.question, answer, reference
+                judge_with, cfg.judge, q.question, answer, reference, salt=cfg.salt
             )
         except InvalidLLMOutput:
             return None, {"error": "invalid_output"}
@@ -297,19 +366,22 @@ async def run_benchmark(
 
     async def one(q: Question) -> None:
         ran.append(q.id)
+        keys: list[str] = []
+        judge_with = None if judge_provider is None else _Recorder(judge_provider, keys)
         try:
             result = await run_question(
                 cfg.arch,
                 q.question,
-                provider,
+                _Recorder(provider, keys),
                 cfg.model_spec,
                 card,
                 con,
                 allowed_tables,
                 semantic=semantic,
+                salt=cfg.salt,
             )
             verdict = score(q, result.answer)
-            judged = await _judge(q, result.answer)
+            judged = await _judge(q, result.answer, judge_with)
         except (DailyLimitReached, BudgetExceeded) as exc:
             stop.setdefault("reason", str(exc))
             stop.setdefault("exit", EXIT_STOPPED)
@@ -319,6 +391,11 @@ async def run_benchmark(
             stop.setdefault("reason", f"replay cache miss on {q.id}")
             stop.setdefault("exit", EXIT_FAILED)
             store.save(run_id, q.id, "error", error=f"cache_miss: {exc.key}")
+            return
+        except BatchPending as exc:
+            stop.setdefault("reason", str(exc))
+            stop.setdefault("exit", EXIT_WAITING)
+            store.save(run_id, q.id, "retry", error="waiting on a batch")
             return
         except TransientLLMError as exc:
             store.save(run_id, q.id, "retry", error=f"transient: {exc}")
@@ -348,6 +425,7 @@ async def run_benchmark(
             latency_ms=result.latency_ms,
             error=result.error,
         )
+        store.save_keys(run_id, q.id, keys)
         log.info(
             "question",
             extra={
@@ -369,13 +447,15 @@ async def run_benchmark(
     await asyncio.gather(*(worker() for _ in range(workers)))
 
     if stop:
-        if stop["exit"] == EXIT_STOPPED:
+        if stop["exit"] in (EXIT_STOPPED, EXIT_WAITING):
             while not queue.empty():
                 store.save(run_id, queue.get_nowait().id, "retry", error="not run: stopped")
-        status = "stopped" if stop["exit"] == EXIT_STOPPED else "failed"
+        status = STATUS_BY_EXIT[stop["exit"]]
         log.info("run stop", extra={"fields": {"reason": stop["reason"]}})
-    else:
+    elif is_complete(store, cfg):
         status = "complete"
+    else:
+        status = "incomplete"  # transient errors left "retry" rows: run again
     store.set_status(run_id, status)
     hit_sources = {id(p): p for p in (provider, judge_provider) if p is not None}
     hits = sum(int(getattr(p, "hits", 0)) for p in hit_sources.values())

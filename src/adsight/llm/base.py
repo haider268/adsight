@@ -51,3 +51,12 @@ class CacheMiss(LLMError):
     def __init__(self, key: str):
         super().__init__(f"no cached response for {key}")
         self.key = key
+
+
+class BatchPending(LLMError):
+    """Tick mode: a submitted batch has not ended within the wait. Stop cleanly; the batch
+    stays recorded and is re-attached on the next run."""
+
+    def __init__(self, batch_id: str):
+        super().__init__(f"waiting on batch {batch_id}")
+        self.batch_id = batch_id

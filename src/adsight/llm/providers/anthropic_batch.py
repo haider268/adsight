@@ -15,11 +15,12 @@ re-attached and is marked "abandoned".
 """
 
 import asyncio
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from adsight.llm.base import InvalidLLMOutput, TransientLLMError
+from adsight.llm.base import BatchPending, InvalidLLMOutput, TransientLLMError
 from adsight.llm.budget import BudgetGuard
 from adsight.llm.cache import ResponseCache
 from adsight.llm.limits import Limits
@@ -66,8 +67,15 @@ class BatchingAnthropicProvider:
         idle_flush_s: float = 3.0,
         poll_s: float = 30.0,
         max_batch: int = MAX_BATCH,
+        wait_s: float | None = None,
     ):
+        """`wait_s` is tick mode: once that many seconds have passed since this provider was
+        created, a batch that has not ended stops the run (BatchPending) instead of being
+        waited for. None waits forever."""
         self.client, self.cache, self.guard = client, cache, guard
+        self.wait_s = wait_s
+        self.deadline = None if wait_s is None else time.monotonic() + wait_s
+        self.waiting = False  # a batch outlived the deadline: accept no new requests
         self.idle_flush_s, self.poll_s, self.max_batch = idle_flush_s, poll_s, max_batch
         self.submitted: list[str] = []  # batch ids this instance created
         self._queue: dict[str, _Item] = {}
@@ -76,12 +84,15 @@ class BatchingAnthropicProvider:
         self._task: asyncio.Task[None] | None = None
         self._reattached = False
         self._last_arrival = 0.0
+        self._pending_id = ""
 
     async def complete(self, req: LLMRequest, salt: str = "") -> LLMResponse:
         key = request_key(req, salt)
         stored = self.cache.get(key)
         if stored is not None:
             return stored.model_copy(update={"cached": True, "cost_usd": 0.0})
+        if self.waiting:
+            raise BatchPending(self._pending_id)
         self.guard.check()
         loop = asyncio.get_running_loop()
         future: asyncio.Future[LLMResponse] = loop.create_future()
@@ -97,13 +108,22 @@ class BatchingAnthropicProvider:
 
     # --- coordinator --------------------------------------------------------------
 
+    async def reattach(self) -> None:
+        """Poll and ingest every recorded batch not yet ingested (once per instance)."""
+        if not self._reattached:
+            await self._reattach()
+            self._reattached = True
+
     async def _run(self) -> None:
         loop = asyncio.get_running_loop()
         try:
-            if not self._reattached:
-                await self._reattach()
-                self._reattached = True
+            await self.reattach()
             while self._queue or self._collectors:
+                if self.waiting and self._queue:
+                    for item in list(self._queue.values()):
+                        self._finish(item, exc=BatchPending(self._pending_id))
+                    self._queue.clear()
+                    continue
                 if not self._queue:
                     await asyncio.wait(
                         set(self._collectors),
@@ -210,6 +230,12 @@ class BatchingAnthropicProvider:
             if status == "ended":
                 break
             self.cache.set_batch_status(batch_id, status)
+            if self.deadline is not None and time.monotonic() >= self.deadline:
+                self.waiting, self._pending_id = True, batch_id
+                log.info("batch wait over", extra={"fields": {"batch_id": batch_id}})
+                for item in items.values():
+                    self._finish(item, exc=BatchPending(batch_id))
+                return
             await asyncio.sleep(self.poll_s)
 
         seen: set[str] = set()

@@ -128,7 +128,8 @@ class ResponseCache:
     def open_batches(self) -> list[tuple[str, str]]:
         """(batch_id, status) of every batch not yet ingested, oldest first."""
         rows = self.con.execute(
-            "SELECT batch_id, status FROM batches WHERE status NOT IN ('ingested', 'abandoned') "
+            "SELECT batch_id, status FROM batches "
+            "WHERE status NOT IN ('ingested', 'abandoned', 'failed') "
             "ORDER BY submitted_at, rowid"
         ).fetchall()
         return [(str(r[0]), str(r[1])) for r in rows]
@@ -142,6 +143,37 @@ class ResponseCache:
         return {
             str(cid): (str(key), LLMRequest.model_validate(json.loads(rj))) for cid, key, rj in rows
         }
+
+    def export_rows(self, keys: list[str]) -> list[dict[str, object]]:
+        """The stored rows for `keys` (missing keys are skipped), sorted by key."""
+        out: list[dict[str, object]] = []
+        for key in sorted(set(keys)):
+            cursor = self.con.execute("SELECT * FROM responses WHERE key = ?", (key,))
+            names = [d[0] for d in cursor.description]
+            row = cursor.fetchone()
+            if row is not None:
+                out.append(dict(zip(names, row, strict=True)))
+        return out
+
+    def import_rows(self, rows: list[dict[str, object]]) -> None:
+        with self.con:
+            for row in rows:
+                names = list(row)
+                self.con.execute(
+                    f"INSERT OR REPLACE INTO responses ({', '.join(names)}) "
+                    f"VALUES ({', '.join('?' for _ in names)})",
+                    [row[n] for n in names],
+                )
+
+    @classmethod
+    def from_cassette(cls, path: Path) -> "ResponseCache":
+        """An in-memory cache holding exactly the responses in a cassette.jsonl.gz."""
+        import gzip
+
+        cache = cls(Path(":memory:"))
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            cache.import_rows([json.loads(line) for line in fh if line.strip()])
+        return cache
 
     def batch_count(self) -> int:
         row = self.con.execute("SELECT COUNT(*) FROM batches").fetchone()

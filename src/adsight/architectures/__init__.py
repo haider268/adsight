@@ -46,6 +46,7 @@ async def run_question(
     allowed_tables: set[str],
     effort: Effort | None = None,
     semantic: SemanticModel | None = None,
+    salt: str = "",
 ) -> RunResult:
     """Run one question through one architecture. Provider errors other than invalid
     output (daily limit, budget, cache miss, transient) propagate to the caller."""
@@ -60,6 +61,7 @@ async def run_question(
         effort=effort,
         meter=meter,
         semantic=semantic,
+        salt=salt,
     )
     started = time.perf_counter()
     error: str | None = None

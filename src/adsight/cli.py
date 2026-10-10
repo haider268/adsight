@@ -453,10 +453,25 @@ def bench_run(
     judge: Annotated[
         str, typer.Option("--judge", help="Model spec of the root-cause judge, or off.")
     ] = "off",
+    salt: Annotated[
+        str, typer.Option("--salt", help="Run salt: repeat runs become independent samples.")
+    ] = "",
+    sample: Annotated[
+        int | None, typer.Option("--sample", help="N questions spread over the categories.")
+    ] = None,
+    wait_minutes: Annotated[
+        float | None,
+        typer.Option("--wait-minutes", help="Tick mode: stop (exit 4) if a batch outlasts this."),
+    ] = None,
+    cassette: Annotated[
+        Path | None,
+        typer.Option("--cassette", help="With --replay: answer from this cassette.jsonl.gz."),
+    ] = None,
 ) -> None:
     """Run (or resume) a benchmark: score every effective question and write a report.
 
-    Exit code 3 means a clean, resumable stop (daily limit or budget): run it again later.
+    Exit codes: 3 a clean, resumable stop (daily limit or budget); 4 waiting on a batch.
+    Run it again later to continue.
     """
     import asyncio
 
@@ -464,12 +479,16 @@ def bench_run(
     from adsight.architectures import ARCHITECTURES
     from adsight.bench_run import RunConfig, RunStore, load_manifest, run_benchmark
     from adsight.generate.context import build_context
+    from adsight.llm.cache import ResponseCache
     from adsight.llm.factory import ProviderPool
     from adsight.semantic.model import load_model
     from adsight.sql_safety import open_agent_connection
 
     settings = get_settings()
     configure_logging(settings.log_level)
+    if cassette is not None and not replay:
+        err_console.print("--cassette needs --replay")
+        raise typer.Exit(2)
     if arch not in ARCHITECTURES:
         err_console.print(f"unknown architecture {arch!r}; choose from {sorted(ARCHITECTURES)}")
         raise typer.Exit(2)
@@ -486,10 +505,23 @@ def bench_run(
         batch,
         mode="replay" if replay else "normal",
         script=[] if model.startswith("fixture:") or judge.startswith("fixture:") else None,
+        cache=None if cassette is None else ResponseCache.from_cassette(cassette),
+        wait_s=None if wait_minutes is None else wait_minutes * 60,
     )
     provider = pool.get(model)
     judge_provider = None if judge == "off" else pool.get(judge)
-    cfg = RunConfig(questions_dir, arch, model, batch, limit, run_id, settings.seed, judge=judge)
+    cfg = RunConfig(
+        questions_dir,
+        arch,
+        model,
+        batch,
+        limit,
+        run_id,
+        settings.seed,
+        judge=judge,
+        salt=salt,
+        sample=sample,
+    )
     store = RunStore(settings.runs_db_path)
     con = open_agent_connection(path)
     try:
@@ -533,6 +565,83 @@ def bench_run(
         err_console.print(f"STOPPED: {outcome.stop_reason}")
     if outcome.exit_code:
         raise typer.Exit(outcome.exit_code)
+
+
+@bench_app.command("resume")
+def bench_resume(
+    plan_path: Annotated[Path, typer.Option("--plan", help="Run plan YAML.")],
+    wait_minutes: Annotated[
+        float | None,
+        typer.Option("--wait-minutes", help="Stop (exit 4) if a batch outlasts this."),
+    ] = None,
+) -> None:
+    """One tick of a run plan: re-attach batches, then run every unfinished job at once.
+
+    Exit codes: 0 every job complete; 3 budget or daily limit; 4 waiting on a batch or
+    not finished yet. Run it again later to continue.
+    """
+    import asyncio
+
+    from adsight.bench_run import RunStore
+    from adsight.llm.factory import ProviderPool
+    from adsight.plans import load_plan, plan_settings, record_progress, resume_plan
+
+    plan = load_plan(plan_path)
+    settings = plan_settings(plan, get_settings())
+    configure_logging(settings.log_level)
+    wait_s = None if wait_minutes is None else wait_minutes * 60
+    pool = ProviderPool(settings, script=[], wait_s=wait_s)  # fixture jobs: replay only
+    store = RunStore(settings.runs_db_path)
+    try:
+        tick = asyncio.run(resume_plan(plan, settings, pool, store))
+    finally:
+        store.close()
+        pool.close()
+    record_progress(plan, tick, settings)
+
+    table = Table(title=f"plan {plan.name}")
+    for column in ("job", "done/total", "retry", "errors", "accuracy", "cost"):
+        table.add_column(column, justify="left" if column == "job" else "right")
+    for p in tick.progress:
+        table.add_row(
+            p.job,
+            f"{p.done}/{p.total}",
+            str(p.retry),
+            str(p.errors),
+            f"{p.accuracy:.1%}",
+            f"${p.cost_usd:.4f}",
+        )
+    console.print(table)
+    console.print(
+        f"spend ${tick.spent_usd:.4f} of ${tick.budget_usd:.2f} budget; "
+        f"batches in flight {tick.batches_in_flight}"
+    )
+    if tick.reason:
+        err_console.print(f"STOPPED: {tick.reason}")
+    if tick.exit_code:
+        raise typer.Exit(tick.exit_code)
+
+
+@bench_app.command("export")
+def bench_export(
+    plan_path: Annotated[Path, typer.Option("--plan", help="Run plan YAML.")],
+    out: Annotated[Path, typer.Option("--out", help="Output folder.")],
+) -> None:
+    """Write each job's report and response cassette, plus summary.json, for offline replay."""
+    from adsight.bench_run import RunStore
+    from adsight.llm.cache import ResponseCache
+    from adsight.plans import export_plan, load_plan
+
+    plan = load_plan(plan_path)
+    settings = get_settings()
+    store = RunStore(settings.runs_db_path)
+    cache = ResponseCache(settings.llm_cache_path)
+    try:
+        summary = export_plan(plan, settings, store, cache, out)
+    finally:
+        store.close()
+        cache.close()
+    console.print(f"exported {len(summary['jobs'])} jobs to {out}")
 
 
 @bench_app.command("status")

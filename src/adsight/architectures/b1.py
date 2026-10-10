@@ -48,8 +48,10 @@ def build_graph(
     effort: Effort | None = None,
     meter: Meter | None = None,
     semantic: SemanticModel | None = None,
+    salt: str = "",
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
+    rt.salt = salt
     if meter is not None:
         rt.meter = meter
 

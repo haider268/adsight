@@ -77,11 +77,18 @@ class Runtime:
     effort: Effort | None = None
     meter: Meter = field(default_factory=Meter)
     semantic: SemanticModel | None = None
+    salt: str = ""  # run-level salt: repeat runs are independent samples
+
+
+def retry_salt(salt: str) -> str:
+    """The salt of the one retry after invalid output, combined with the run salt."""
+    return f"{salt}:{RETRY_SALT}" if salt else RETRY_SALT
 
 
 async def call_llm(rt: Runtime, schema: type[M], user_text: str, max_tokens: int) -> M:
-    """One structured call validated into `schema`. Invalid output is retried once with
-    salt "retry1" (a new cache key); a second failure raises InvalidTwice."""
+    """One structured call validated into `schema`, cached under the run salt. Invalid
+    output is retried once with "<salt>:retry1" (a new cache key); a second failure raises
+    InvalidTwice."""
     spec = parse_spec(rt.model_spec)
     req = LLMRequest(
         provider=spec.provider,
@@ -93,7 +100,7 @@ async def call_llm(rt: Runtime, schema: type[M], user_text: str, max_tokens: int
         max_tokens=max_tokens,
         effort=rt.effort,
     )
-    for salt in ("", RETRY_SALT):
+    for salt in (rt.salt, retry_salt(rt.salt)):
         rt.meter.llm_calls += 1
         try:
             resp = await rt.provider.complete(req, salt)
