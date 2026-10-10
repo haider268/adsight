@@ -1,4 +1,5 @@
-"""What every architecture shares: the graph state, the LLM call and result formatting."""
+"""What every architecture shares: the graph state, the LLM call, result formatting and the
+plan -> execute -> check -> fix nodes used by B2, B3 and B4."""
 
 from dataclasses import dataclass, field
 from typing import Any, TypedDict, TypeVar
@@ -6,16 +7,23 @@ from typing import Any, TypedDict, TypeVar
 import duckdb
 from pydantic import BaseModel, ValidationError
 
+from adsight.agent.checks import check_result
+from adsight.agent.prompts import FIX, FIX_MAX_TOKENS, PLAN, PLAN_MAX_TOKENS
+from adsight.agent.schemas import FixJSON, PlanJSON
 from adsight.benchmark.answer import AgentAnswer
 from adsight.llm.base import InvalidLLMOutput, LLMProvider
 from adsight.llm.factory import parse_spec
 from adsight.llm.schema import portable_schema
 from adsight.llm.types import Effort, LLMRequest, Msg
-from adsight.sql_safety import SqlResult
+from adsight.semantic.model import SemanticModel
+from adsight.sql_safety import SqlResult, run_sql
 
 M = TypeVar("M", bound=BaseModel)
 
 RETRY_SALT = "retry1"
+MAX_PLAN_STEPS = 4
+MAX_FIXES = 3
+RESULT_ROWS = 25
 
 
 class AgentState(TypedDict, total=False):
@@ -25,6 +33,16 @@ class AgentState(TypedDict, total=False):
     tokens: dict[str, int]  # {"input": n, "output": n}
     sql_list: list[str]  # every query the agent ran
     answer: AgentAnswer
+    # B2-B4
+    plan: dict[str, Any]  # {"kind", "reason"}
+    plan_steps: list[dict[str, Any]]  # goal, sql, result, issues, pending
+    fixes: int
+    classification: dict[str, Any]  # {"kind", "reason"}
+    diagnosis: str
+    draft: dict[str, Any]  # the AnswerJSON before number verification
+    untraceable: list[float]
+    resynthesized: bool
+    untraceable_numbers: int
 
 
 @dataclass
@@ -58,6 +76,7 @@ class Runtime:
     allowed_tables: set[str]
     effort: Effort | None = None
     meter: Meter = field(default_factory=Meter)
+    semantic: SemanticModel | None = None
 
 
 async def call_llm(rt: Runtime, schema: type[M], user_text: str, max_tokens: int) -> M:
@@ -101,3 +120,102 @@ def format_result(result: SqlResult, max_rows: int) -> str:
     more = " or more (truncated)" if result.truncated else ""
     lines.append(f"Rows: {result.row_count}{more}; showing {len(shown)}.")
     return "\n".join(lines)
+
+
+# --- plan -> execute -> check -> fix (B2, B3, B4) --------------------------------------
+
+
+def render_steps(plan_steps: list[dict[str, Any]], with_issues: bool = True) -> str:
+    """Each step's goal, SQL, first rows or error, and its check issues."""
+    blocks = []
+    for i, step in enumerate(plan_steps, 1):
+        block = f"Step {i} goal: {step['goal']}\nSQL: {step['sql']}\n{step['text']}"
+        if with_issues and step.get("issues"):
+            block += "\nCheck issues: " + " ".join(step["issues"])
+        blocks.append(block)
+    return "\n\n".join(blocks)
+
+
+def evidence_text(state: AgentState) -> str:
+    """What the data said: each step's result (not its SQL or goal) and the diagnosis."""
+    results = [str(step.get("text", "")) for step in state.get("plan_steps", [])]
+    return "\n".join([*results, state.get("diagnosis", "")])
+
+
+def plan_node(rt: Runtime) -> Any:  # Any: LangGraph's add_node overloads
+    async def plan(state: AgentState) -> AgentState:
+        p = await call_llm(rt, PlanJSON, PLAN.format(question=state["question"]), PLAN_MAX_TOKENS)
+        plan_steps = [
+            {"goal": s.goal, "sql": s.sql, "pending": True, "issues": []}
+            for s in p.steps[:MAX_PLAN_STEPS]
+        ]
+        record = {"node": "plan", "kind": p.kind, "reason": p.reason, "steps": len(plan_steps)}
+        return {
+            "plan": {"kind": p.kind, "reason": p.reason},
+            "plan_steps": plan_steps,
+            "fixes": 0,
+            "steps": [*state.get("steps", []), record],
+            **rt.meter.fields(),
+        }
+
+    return plan
+
+
+def route_plan(state: AgentState) -> str:
+    return "execute" if state["plan"]["kind"] == "query" else "finish_direct"
+
+
+def finish_direct(state: AgentState) -> AgentState:
+    """A plan that asks to clarify or declines becomes the answer, with no SQL."""
+    p = state["plan"]
+    return {"answer": AgentAnswer(kind=p["kind"], summary=p["reason"])}
+
+
+def execute_node(rt: Runtime) -> Any:
+    def execute(state: AgentState) -> AgentState:
+        plan_steps = [dict(s) for s in state["plan_steps"]]
+        sql_list = list(state.get("sql_list", []))
+        for step in plan_steps:
+            if not step["pending"]:
+                continue
+            result = run_sql(rt.con, step["sql"], rt.allowed_tables)
+            step.update(result=result, text=format_result(result, RESULT_ROWS), pending=False)
+            step["rows"] = result.rows[:RESULT_ROWS]
+            step["checked"] = False
+            sql_list.append(step["sql"])
+        return {"plan_steps": plan_steps, "sql_list": sql_list}
+
+    return execute
+
+
+def check(state: AgentState) -> AgentState:
+    """Deterministic checks on every step executed since the last check."""
+    plan_steps = [dict(s) for s in state["plan_steps"]]
+    for step in plan_steps:
+        if not step.get("checked", True):
+            step["issues"] = check_result(step["goal"], step["result"])
+            step["checked"] = True
+    return {"plan_steps": plan_steps}
+
+
+def needs_fix(state: AgentState) -> bool:
+    return state.get("fixes", 0) < MAX_FIXES and any(s["issues"] for s in state["plan_steps"])
+
+
+def fix_node(rt: Runtime) -> Any:
+    async def fix(state: AgentState) -> AgentState:
+        plan_steps = [dict(s) for s in state["plan_steps"]]
+        step = next(s for s in plan_steps if s["issues"])
+        problem = "\n".join(step["issues"])
+        text = FIX.format(goal=step["goal"], sql=step["sql"], problem=problem)
+        f = await call_llm(rt, FixJSON, text, FIX_MAX_TOKENS)
+        record = {"node": "fix", "goal": step["goal"], "diagnosis": f.diagnosis, "sql": f.sql}
+        step.update(sql=f.sql, pending=True, issues=[])
+        return {
+            "plan_steps": plan_steps,
+            "fixes": state.get("fixes", 0) + 1,
+            "steps": [*state.get("steps", []), record],
+            **rt.meter.fields(),
+        }
+
+    return fix

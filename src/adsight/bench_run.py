@@ -28,6 +28,7 @@ from adsight.llm.base import (
 from adsight.llm.cache import now_iso
 from adsight.llm.factory import parse_spec
 from adsight.log import get_logger, set_run_id
+from adsight.semantic.model import SemanticModel
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -235,6 +236,7 @@ async def run_benchmark(
     allowed_tables: set[str],
     store: RunStore,
     reports_dir: Path,
+    semantic: SemanticModel | None = None,
 ) -> RunOutcome:
     run_id = cfg.resolved_run_id
     set_run_id(run_id)
@@ -255,7 +257,14 @@ async def run_benchmark(
         ran.append(q.id)
         try:
             result = await run_question(
-                cfg.arch, q.question, provider, cfg.model_spec, card, con, allowed_tables
+                cfg.arch,
+                q.question,
+                provider,
+                cfg.model_spec,
+                card,
+                con,
+                allowed_tables,
+                semantic=semantic,
             )
         except (DailyLimitReached, BudgetExceeded) as exc:
             stop.setdefault("reason", str(exc))

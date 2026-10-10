@@ -21,6 +21,7 @@ from adsight.architectures.common import AgentState, Meter, Runtime, call_llm, f
 from adsight.benchmark.answer import AgentAnswer
 from adsight.llm.base import LLMProvider
 from adsight.llm.types import Effort
+from adsight.semantic.model import SemanticModel
 from adsight.sql_safety import run_sql
 
 ANSWER_ROWS = 25
@@ -35,6 +36,7 @@ def build_graph(
     *,
     effort: Effort | None = None,
     meter: Meter | None = None,
+    semantic: SemanticModel | None = None,
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     if meter is not None:

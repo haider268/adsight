@@ -38,6 +38,29 @@ class ReActStep(BaseModel):
     final: AnswerJSON
 
 
+class PlanStep(BaseModel):
+    goal: str
+    sql: str
+
+
+class PlanJSON(BaseModel):
+    """1 to 4 steps when kind is query; otherwise steps is empty and reason explains."""
+
+    kind: Literal["query", "clarify", "cannot_answer"]
+    reason: str
+    steps: list[PlanStep]
+
+
+class FixJSON(BaseModel):
+    diagnosis: str
+    sql: str
+
+
+class ClassifyJSON(BaseModel):
+    kind: Literal["lookup", "analytical", "diagnostic", "ambiguous", "unanswerable"]
+    reason: str
+
+
 EMPTY_ANSWER = AnswerJSON(
     kind="answer", summary="", values=[], entities=[], direction="none", assumptions=[]
 )

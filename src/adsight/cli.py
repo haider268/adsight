@@ -427,7 +427,7 @@ def bench_run(
     questions_dir: Annotated[
         Path, typer.Option("--questions-dir", help="Benchmark folder holding questions.jsonl.")
     ],
-    arch: Annotated[str, typer.Option("--arch", help="Architecture: b0 or b1.")],
+    arch: Annotated[str, typer.Option("--arch", help="Architecture: b0, b1, b2, b3 or b4.")],
     model: Annotated[
         str,
         typer.Option(
@@ -492,7 +492,14 @@ def bench_run(
         card = schema_card(sem, build_context(sem, con), con)
         outcome = asyncio.run(
             run_benchmark(
-                cfg, provider, card, con, set(model_tables(sem)), store, settings.reports_dir
+                cfg,
+                provider,
+                card,
+                con,
+                set(model_tables(sem)),
+                store,
+                settings.reports_dir,
+                semantic=sem,
             )
         )
     finally:
