@@ -460,7 +460,10 @@ def test_workflow_guards() -> None:
     triggers = data.get("on", data.get(True))
     assert triggers["schedule"] == [{"cron": "*/30 * * * *"}]
     default = triggers["workflow_dispatch"]["inputs"]["plan"]["default"]
-    assert default == "benchmark/plans/haiku-demo.yaml"
+    assert default == "benchmark/plans/haiku-demo-v2.yaml"
+    # scheduled ticks follow the BENCH_PLAN variable, else the current plan
+    plan_env = data["jobs"]["tick"]["env"]["PLAN"]
+    assert "vars.BENCH_PLAN" in plan_env and "haiku-demo-v2.yaml" in plan_env
     assert data["concurrency"] == {"group": "bench-tick", "cancel-in-progress": False}
     tick = data["jobs"]["tick"]
     assert tick["if"] == "vars.BENCH_ENABLED == 'true'"
