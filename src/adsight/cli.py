@@ -422,5 +422,136 @@ def review(
     console.print(", ".join(f"{state} {n}" for state, n in counts.items()))
 
 
+@bench_app.command("run")
+def bench_run(
+    questions_dir: Annotated[
+        Path, typer.Option("--questions-dir", help="Benchmark folder holding questions.jsonl.")
+    ],
+    arch: Annotated[str, typer.Option("--arch", help="Architecture: b0 or b1.")],
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            help="<provider>:<model>, e.g. groq:openai/gpt-oss-120b, "
+            "gemini:gemini-flash-lite-latest, anthropic:claude-opus-5.",
+        ),
+    ],
+    batch: Annotated[
+        bool, typer.Option("--batch", help="Anthropic only: send calls as batches.")
+    ] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Run the first N only.")] = None,
+    run_id: Annotated[
+        str | None, typer.Option("--run-id", help="Default: <arch>-<model>-<dir>.")
+    ] = None,
+    replay: Annotated[
+        bool, typer.Option("--replay", help="Answer only from the LLM cache; never call out.")
+    ] = False,
+    semantic: Annotated[Path, typer.Option("--semantic", help="Semantic model YAML.")] = Path(
+        "semantic/demo.yaml"
+    ),
+    db: DbOption = None,
+) -> None:
+    """Run (or resume) a benchmark: score every effective question and write a report.
+
+    Exit code 3 means a clean, resumable stop (daily limit or budget): run it again later.
+    """
+    import asyncio
+
+    from adsight.agent.context import model_tables, schema_card
+    from adsight.architectures import ARCHITECTURES
+    from adsight.bench_run import RunConfig, RunStore, run_benchmark
+    from adsight.generate.context import build_context
+    from adsight.llm.factory import make_provider
+    from adsight.semantic.model import load_model
+    from adsight.sql_safety import open_agent_connection
+
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    if arch not in ARCHITECTURES:
+        err_console.print(f"unknown architecture {arch!r}; choose from {sorted(ARCHITECTURES)}")
+        raise typer.Exit(2)
+    path = _db_path(db)
+    if not path.is_file():
+        err_console.print(f"database not found at {path}")
+        raise typer.Exit(2)
+    if not (questions_dir / "questions.jsonl").is_file():
+        err_console.print(f"no questions.jsonl in {questions_dir}")
+        raise typer.Exit(2)
+    sem = load_model(semantic)
+    provider = make_provider(
+        model,
+        settings,
+        batch,
+        mode="replay" if replay else "normal",
+        script=[] if model.startswith("fixture:") else None,
+    )
+    cfg = RunConfig(questions_dir, arch, model, batch, limit, run_id, settings.seed)
+    store = RunStore(settings.runs_db_path)
+    con = open_agent_connection(path)
+    try:
+        card = schema_card(sem, build_context(sem, con), con)
+        outcome = asyncio.run(
+            run_benchmark(
+                cfg, provider, card, con, set(model_tables(sem)), store, settings.reports_dir
+            )
+        )
+    finally:
+        con.close()
+        store.close()
+        provider.cache.close()
+
+    report = outcome.report
+    table = Table(title=f"{outcome.run_id} ({report['status']})")
+    for column in ("category", "passed", "total", "accuracy"):
+        table.add_column(column, justify="left" if column == "category" else "right")
+    for category, counts in report["per_category"].items():
+        total = counts["total"]
+        accuracy = f"{counts['passed'] / total:.0%}" if total else "-"
+        table.add_row(category, str(counts["passed"]), str(total), accuracy)
+    console.print(table)
+    console.print(
+        f"accuracy {report['accuracy']:.1%}, mean LLM calls {report['mean_llm_calls']}, "
+        f"mean tokens {report['mean_tokens']}, total cost ${report['total_cost_usd']:.4f}, "
+        f"cache hits {report['cache_hits']}, counts {report['counts']}"
+    )
+    console.print(f"report: {settings.reports_dir / (outcome.run_id + '.json')}")
+    if outcome.stop_reason:
+        err_console.print(f"STOPPED: {outcome.stop_reason}")
+    if outcome.exit_code:
+        raise typer.Exit(outcome.exit_code)
+
+
+@bench_app.command("status")
+def bench_status(
+    run_id: Annotated[str | None, typer.Option("--run-id", help="Show one run only.")] = None,
+) -> None:
+    """List benchmark runs with their done / retry / error counts and cost."""
+    from adsight.bench_run import RunStore
+
+    settings = get_settings()
+    store = RunStore(settings.runs_db_path)
+    try:
+        runs = store.runs(run_id)
+    finally:
+        store.close()
+    table = Table(title=f"benchmark runs ({settings.runs_db_path})")
+    columns = ("run_id", "arch", "model", "status", "done", "retry", "error", "passed", "cost")
+    for column in columns:
+        table.add_column(column)
+    for r in runs:
+        table.add_row(
+            r["run_id"],
+            r["arch"],
+            r["model_spec"],
+            r["status"],
+            str(r["done"] or 0),
+            str(r["retry"] or 0),
+            str(r["error"] or 0),
+            str(r["passed"] or 0),
+            f"${r['cost_usd']:.4f}",
+        )
+    console.print(table)
+
+
 def main() -> None:
     app()
