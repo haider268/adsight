@@ -90,7 +90,22 @@ def test_card_is_stable_complete_and_short(
     model: SemanticModel, con: duckdb.DuckDBPyConnection, card: str
 ) -> None:
     assert schema_card(model, build_context(model, con), con) == card
-    assert len(card) <= 6000
+    assert len(card) < 7500
+    assert (
+        'account (3): "Restore Regenerative Clinic", "Lumen Med Spa", "Northside Home Services"'
+        in card
+    )
+    for line in ("campaign (9): ", "ad_set (18): ", 'ad (54): "Knee 45-65 Broad | Video", '):
+        assert line in card, line
+    assert card.count(", ...") >= 3
+    assert (
+        "Names in double quotes in a question are exact names from the data: filter on the "
+        "label column with that exact string." in card
+    )
+    assert (
+        "Ask a clarifying question only when the answer depends on a choice you would have to "
+        "guess, such as which account, metric or period; otherwise answer." in card
+    )
     mapped = [model.fact.date, *model.fact.measures.values()]
     for lv in model.levels:
         mapped += [c for c in (lv.key, lv.label, lv.parent_key) if c]
@@ -120,6 +135,7 @@ def test_flat_card_has_no_reach_or_change_log(tmp_path: Path) -> None:
     assert "reach" not in text and "frequency" not in text
     assert "change log" not in text and "events_log" not in text
     assert "perf" in text and "ad_group" in text
+    assert "campaign (3): " in text and "ad_set (6): " in text
 
 
 def test_to_agent_answer() -> None:

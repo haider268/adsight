@@ -8,10 +8,11 @@ import duckdb
 
 from adsight.generate.context import DatasetContext
 from adsight.semantic.metrics import available_metrics, sql_expr
-from adsight.semantic.model import SemanticModel
+from adsight.semantic.model import Level, SemanticModel
 from adsight.semantic.sql import from_clause
 
 MAX_ATTRIBUTE_VALUES = 12
+MAX_ENTITY_EXAMPLES = 5
 
 RULES = (
     "Use only the tables and columns listed. Write DuckDB SQL. Read-only: SELECT only.\n"
@@ -19,7 +20,11 @@ RULES = (
     "'Last 30 days' means the 30 days ending on the last data date.\n"
     "If the question is ambiguous, ask a clarifying question or state your assumption.\n"
     "If the data cannot answer it, say so and why; never invent numbers.\n"
-    "Every number you report must come from a query result."
+    "Every number you report must come from a query result.\n"
+    "Names in double quotes in a question are exact names from the data: filter on the "
+    "label column with that exact string.\n"
+    "Ask a clarifying question only when the answer depends on a choice you would have to "
+    "guess, such as which account, metric or period; otherwise answer."
 )
 
 
@@ -77,6 +82,21 @@ def _values(con: duckdb.DuckDBPyConnection, table: str, column: str) -> str:
     return " | ".join(values[:MAX_ATTRIBUTE_VALUES]) + (" | ..." if more else "")
 
 
+def entity_line(model: SemanticModel, level: Level, con: duckdb.DuckDBPyConnection) -> str:
+    """`ad (54): "first label", ...`: the level's entity count and its first examples in
+    key order (labels, or keys when the level has no label)."""
+    key = _q(level.key)
+    shown = _q(level.label) if level.label else key
+    rows = con.execute(
+        f"SELECT {key}, MIN(CAST({shown} AS VARCHAR)), COUNT(*) OVER () FROM {_q(level.table)} "
+        f"WHERE {key} IS NOT NULL GROUP BY {key} ORDER BY {key} LIMIT {MAX_ENTITY_EXAMPLES + 1}"
+    ).fetchall()
+    count = int(rows[0][2]) if rows else 0
+    examples = ", ".join(f'"{r[1]}"' for r in rows[:MAX_ENTITY_EXAMPLES])
+    more = ", ..." if count > MAX_ENTITY_EXAMPLES else ""
+    return f"{level.name} ({count}): {examples}{more}"
+
+
 def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyConnection) -> str:
     grain = "daily" if model.grain == "day" else "weekly (dates are Monday week starts)"
     bottom = model.levels[-1].name
@@ -99,6 +119,8 @@ def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyC
         lines.append(f"{table}{role}: {items}")
 
     lines += ["", "HIERARCHY: " + " > ".join(lv.name for lv in model.levels)]
+    lines.append("ENTITIES (count: first names in key order)")
+    lines += [entity_line(model, lv, con) for lv in model.levels]
     lines.append("JOIN (all levels):")
     lines += from_clause(model, [lv.name for lv in model.levels], []).splitlines()
 
