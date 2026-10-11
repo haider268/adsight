@@ -51,6 +51,11 @@ class _Item:
     def custom_id(self) -> str:
         return self.key[:CUSTOM_ID_CHARS]
 
+    @property
+    def awaited(self) -> bool:
+        """Whether any caller still waits for this request."""
+        return any(not f.done() for f in self.futures)
+
 
 def _error_type(result: Any) -> str:
     error = getattr(result, "error", None)
@@ -87,6 +92,8 @@ class BatchingAnthropicProvider:
         self._pending_id = ""
 
     async def complete(self, req: LLMRequest, salt: str = "") -> LLMResponse:
+        """One future per key: a request whose key is already queued or in a batch in flight
+        awaits that request's result; nothing new is queued or paid for."""
         key = request_key(req, salt)
         stored = self.cache.get(key)
         if stored is not None:
@@ -159,12 +166,22 @@ class BatchingAnthropicProvider:
             log.info("batch reattach", extra={"fields": {"batch_id": batch_id, "n": len(items)}})
             await self._collect(batch_id, items)
 
+    async def drain(self) -> None:
+        """Wait until every submitted batch has been ingested (or its wait has run out)."""
+        while self._collectors:
+            await asyncio.wait(set(self._collectors))
+
     async def _submit(self) -> None:
+        """Flush the queue as one batch. An item whose response reached the cache meanwhile
+        is answered from it, an item nobody waits for any more is dropped, and an empty
+        result submits nothing."""
         pending: list[_Item] = []
         for item in self._queue.values():
             stored = self.cache.get(item.key)
             if stored is not None:
                 self._finish(item, resp=stored.model_copy(update={"cached": True, "cost_usd": 0}))
+            elif not item.awaited:
+                log.info("batch item dropped: nobody waits", extra={"fields": {"key": item.key}})
             else:
                 pending.append(item)
         self._queue.clear()
@@ -281,8 +298,8 @@ class BatchingAnthropicProvider:
     def _retry_or_fail(self, item: _Item, why: str) -> None:
         """Errored (not invalid), canceled, expired or missing: requeue once, then fail."""
         self._inflight.pop(item.key, None)
-        if not item.futures:
-            return  # re-attached with nobody waiting: a later request simply resubmits
+        if not item.awaited:
+            return  # nobody waiting (e.g. re-attached): a later request simply resubmits
         if item.attempts < 1:
             item.attempts += 1
             queued = self._queue.get(item.key)

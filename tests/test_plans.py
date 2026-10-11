@@ -137,6 +137,8 @@ def _reply(params: dict[str, Any]) -> dict[str, Any]:
         return {"reasoning": "", "identifies_true_cause": True, "invents_unsupported_cause": False}
     if "steps" in props:
         return {"kind": "query", "reason": "", "steps": [{"goal": "count", "sql": COUNT_SQL}]}
+    if set(props) == {"kind", "reason"}:  # B4's classify
+        return {"kind": "lookup", "reason": "one number"}
     if "sql" in props and "reason" in props:
         return {"kind": "query", "sql": COUNT_SQL, "reason": ""}
     return {
@@ -546,3 +548,39 @@ def test_export_workflow_is_manual_and_secret_free() -> None:
     )
     assert "secrets." not in text
     assert "git push" not in text and "git commit" not in text
+
+
+def judge_keys(batches: FakeBatches) -> list[str]:
+    return [
+        r["custom_id"]
+        for _, reqs in batches.created
+        for r in reqs
+        if "identifies_true_cause" in r["params"]["output_config"]["format"]["schema"]["properties"]
+    ]
+
+
+def test_identical_judge_requests_across_waves_are_paid_once(
+    tmp_path: Path, bench_data_dir: Path
+) -> None:
+    # B0 asks its judge question one wave before B4 does; both answer "Counted.", so the
+    # two judge requests are identical (same key).
+    qdir = qdir_with(tmp_path, "rc", "RC01")
+    db = str(bench_data_dir / "adsight.duckdb")
+    common = {"questions_dir": str(qdir), "semantic": str(DEMO_YAML), "db": db}
+    jobs = [
+        {"id": "x", "arch": "b0", "model": HAIKU, "batch": True, "judge": HAIKU, **common},
+        {"id": "y", "arch": "b4", "model": HAIKU, "batch": True, "judge": HAIKU, **common},
+    ]
+    plan = load_plan(write_plan(tmp_path, jobs))
+    settings = plan_settings(plan, settings_for(tmp_path))
+    batches = FakeBatches()
+    pool = pool_for(settings, batches)
+    store = RunStore(settings.runs_db_path)
+    tick = asyncio.run(resume_plan(plan, settings, pool, store))
+    pool.close()
+    store.close()
+    assert tick.exit_code == EXIT_OK
+    assert [(p.job, p.done, p.total) for p in tick.progress] == [("x", 1, 1), ("y", 1, 1)]
+    keys = judge_keys(batches)
+    assert len(keys) == 1, [len(r) for _, r in batches.created]
+    assert tick.batches_in_flight == 0

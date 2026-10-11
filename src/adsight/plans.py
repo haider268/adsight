@@ -261,6 +261,10 @@ async def resume_plan(
                 )
             )
         await asyncio.gather(*coros)
+        # Ingest any batch still in flight so "batches in flight" is only what is genuinely
+        # awaited (a tick's wait still applies).
+        for batcher in pool.batchers():
+            await batcher.drain()
     finally:
         for d in data.values():
             d.con.close()

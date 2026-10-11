@@ -25,7 +25,7 @@ from adsight.llm.cache import CachedProvider, ResponseCache
 from adsight.llm.factory import make_provider, parse_spec
 from adsight.llm.limits import LimitedProvider, Limits, RateLimiter, backoff_delay, with_retries
 from adsight.llm.pricing import Usage, cost_usd, price_of
-from adsight.llm.providers.anthropic_batch import BatchingAnthropicProvider
+from adsight.llm.providers.anthropic_batch import BATCH_LIMITS, BatchingAnthropicProvider
 from adsight.llm.providers.anthropic_direct import (
     AnthropicDirectProvider,
     build_params,
@@ -604,3 +604,114 @@ def test_factory(tmp_path: Path) -> None:
     batch = make_provider("anthropic:claude-haiku-4-5", settings, batch=True, client=fake)
     assert isinstance(batch.inner, LimitedProvider)
     assert isinstance(batch.inner.inner, BatchingAnthropicProvider)
+
+
+# --- sharing requests across batch waves -------------------------------------------------
+
+
+class HeldBatches(FakeBatches):
+    """Batches stay in progress until `release` is set."""
+
+    def __init__(self, cache: ResponseCache):
+        super().__init__(cache)
+        self.release = asyncio.Event()
+
+    async def retrieve(self, batch_id: str) -> Any:
+        self.events.append(f"retrieve {batch_id}")
+        status = "ended" if self.release.is_set() else "in_progress"
+        return SimpleNamespace(id=batch_id, processing_status=status, request_counts=None)
+
+
+def stacked(cache: ResponseCache, batches: FakeBatches) -> CachedProvider:
+    """The provider stack ProviderPool builds: cache, limits, then the batcher."""
+    limited = LimitedProvider(batching(cache, batches), RateLimiter(BATCH_LIMITS))
+    return CachedProvider(limited, cache)
+
+
+def submitted_keys(batches: FakeBatches) -> list[str]:
+    return [r["custom_id"] for _, reqs in batches.created for r in reqs]
+
+
+def test_concurrent_identical_requests_share_one_item(cache: ResponseCache) -> None:
+    batches = FakeBatches(cache)
+    provider = stacked(cache, batches)
+
+    async def run() -> list[LLMResponse]:
+        return await asyncio.gather(*(provider.complete(req("twin")) for _ in range(3)))
+
+    responses = asyncio.run(run())
+    assert submitted_keys(batches) == [request_key(req("twin"))[:40]]
+    assert all(r.data == {"echo": "twin"} for r in responses)
+
+
+def test_identical_request_joins_the_batch_in_flight(cache: ResponseCache) -> None:
+    batches = HeldBatches(cache)
+    provider = stacked(cache, batches)
+
+    async def run() -> tuple[LLMResponse, LLMResponse]:
+        first = asyncio.ensure_future(provider.complete(req("judge")))
+        while not batches.created:  # wait until batch 1 is submitted and in flight
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0.1)  # longer than the idle flush: a new queue would flush now
+        second = asyncio.ensure_future(provider.complete(req("judge")))
+        await asyncio.sleep(0.1)
+        assert len(batches.created) == 1 and not second.done()
+        batches.release.set()
+        return await first, await second
+
+    first, second = asyncio.run(run())
+    assert first.data == second.data == {"echo": "judge"}
+    assert len(batches.created) == 1 and len(submitted_keys(batches)) == 1
+    assert cache.open_batches() == []
+
+
+def test_item_cached_before_flush_is_not_submitted(cache: ResponseCache) -> None:
+    batches = FakeBatches(cache)
+    provider = batching(cache, batches)
+    request = req("cached meanwhile")
+
+    async def run() -> LLMResponse:
+        waiting = asyncio.ensure_future(provider.complete(request))
+        await asyncio.sleep(0.01)  # queued, not yet flushed (idle flush is 0.05 s)
+        stored = LLMResponse(
+            data={"echo": "from the cache"}, raw_text="{}", input_tokens=1, output_tokens=1
+        )
+        cache.put(request_key(request), request, stored)
+        return await waiting
+
+    response = asyncio.run(run())
+    assert response.data == {"echo": "from the cache"} and response.cost_usd == 0
+    assert batches.created == []
+    assert cache.open_batches() == []
+
+
+def test_item_nobody_waits_for_is_not_submitted(cache: ResponseCache) -> None:
+    batches = FakeBatches(cache)
+    provider = batching(cache, batches)
+
+    async def run() -> LLMResponse:
+        gone = asyncio.ensure_future(provider.complete(req("abandoned")))
+        await asyncio.sleep(0.01)  # queued, not yet flushed
+        gone.cancel()
+        return await provider.complete(req("wanted"))
+
+    assert asyncio.run(run()).data == {"echo": "wanted"}
+    assert submitted_keys(batches) == [request_key(req("wanted"))[:40]]
+
+
+def test_drain_ingests_a_batch_nobody_waits_for(cache: ResponseCache) -> None:
+    batches = HeldBatches(cache)
+    provider = batching(cache, batches)
+
+    async def run() -> None:
+        caller = asyncio.ensure_future(provider.complete(req("late")))
+        while not batches.created:
+            await asyncio.sleep(0.01)
+        caller.cancel()  # the batch is already paid for; its result must still be kept
+        assert len(cache.open_batches()) == 1
+        batches.release.set()
+        await provider.drain()
+
+    asyncio.run(run())
+    assert cache.open_batches() == []
+    assert cache.get(request_key(req("late"))) is not None
