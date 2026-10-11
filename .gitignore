@@ -17,3 +17,4 @@ local/
 *.duckdb.wal
 .adsight/
 /results/
+/.convoprobe/

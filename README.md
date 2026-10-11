@@ -193,7 +193,8 @@ and judge: Groq's free `gpt-oss-20b` and `gpt-oss-120b`. The simulator sometimes
 full question instead of referring back, so the change-of-mind case received a light test.
 [Full report](benchmark/convoprobe/results/adsight-marketers-3/report.html). Reproduce:
 `uv sync --extra probe`, then `ADSIGHT_CHAT_MODEL=anthropic:claude-haiku-4-5 uv run convoprobe
-run benchmark/convoprobe/marketers.yaml --adapter adsight.probe_adapter:agent --hosted --html`.
+run benchmark/convoprobe/marketers.yaml --adapter adsight.probe_adapter:agent --hosted --html`. An Anthropic agent model also needs `ADSIGHT_ANTHROPIC_BUDGET_USD` set above 0; with a Groq
+agent model (the default for `ADSIGHT_CHAT_MODEL`) the run uses only free tiers.
 
 ## How the benchmark is built
 
