@@ -15,7 +15,7 @@ on:
       plan:
         description: Run plan YAML
         required: true
-        default: benchmark/plans/haiku-demo-v2.yaml
+        default: benchmark/plans/haiku-demo-v3.yaml
 
 permissions:
   contents: read

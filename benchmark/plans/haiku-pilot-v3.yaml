@@ -1,0 +1,50 @@
+# A cheap pilot before the v3 plan (haiku-demo-v3.yaml): every architecture on 10 demo
+# questions spread over the categories.
+name: haiku-pilot-v3
+budget_usd: 5
+jobs:
+  - id: pilot-b0-v3
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b0
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 10
+    salt: ""
+  - id: pilot-b1-v3
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b1
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 10
+    salt: ""
+  - id: pilot-b2-v3
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b2
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 10
+    salt: ""
+  - id: pilot-b3-v3
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b3
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 10
+    salt: ""
+  - id: pilot-b4-v3
+    questions_dir: benchmark/generated/adsight-demo
+    semantic: semantic/demo.yaml
+    arch: b4
+    model: anthropic:claude-haiku-4-5
+    batch: true
+    judge: anthropic:claude-haiku-4-5
+    sample: 10
+    salt: ""

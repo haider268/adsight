@@ -461,10 +461,11 @@ def test_workflow_guards() -> None:
     triggers = data.get("on", data.get(True))
     assert triggers["schedule"] == [{"cron": "*/30 * * * *"}]
     default = triggers["workflow_dispatch"]["inputs"]["plan"]["default"]
-    assert default == "benchmark/plans/haiku-demo-v2.yaml"
+    assert default == "benchmark/plans/haiku-demo-v3.yaml"
     # scheduled ticks follow the BENCH_PLAN variable, else the current plan
     plan_env = data["jobs"]["tick"]["env"]["PLAN"]
-    assert "vars.BENCH_PLAN" in plan_env and "haiku-demo-v2.yaml" in plan_env
+    assert "vars.BENCH_PLAN" in plan_env and "haiku-demo-v3.yaml" in plan_env
+    assert "haiku-demo-v2" not in text
     assert data["concurrency"] == {"group": "bench-tick", "cancel-in-progress": False}
     tick = data["jobs"]["tick"]
     assert tick["if"] == "vars.BENCH_ENABLED == 'true'"
@@ -507,6 +508,22 @@ def test_v2_plan_mirrors_the_first() -> None:
     assert v2.budget_usd == first.budget_usd
 
 
+def test_v3_plans_mirror_v2_and_the_pilot() -> None:
+    v2 = load_plan(PLANS / "haiku-demo-v2.yaml")
+    v3 = load_plan(PLANS / "haiku-demo-v3.yaml")
+    assert v3.name == "haiku-demo-v3" and v3.budget_usd == v2.budget_usd
+    assert all(j.id.endswith("-v3") for j in v3.jobs)
+    assert [j.model_copy(update={"id": j.id[:-3] + "-v2"}) for j in v3.jobs] == v2.jobs
+    pilot = load_plan(PLANS / "haiku-pilot-v3.yaml")
+    assert pilot.name == "haiku-pilot-v3"
+    assert [j.id for j in pilot.jobs] == [f"pilot-b{i}-v3" for i in range(5)]
+    assert [j.arch for j in pilot.jobs] == ["b0", "b1", "b2", "b3", "b4"]
+    assert all(
+        j.sample == 10 and j.batch and j.judge == HAIKU and j.model == HAIKU for j in pilot.jobs
+    )
+    assert {j.questions_dir for j in pilot.jobs} == {Path("benchmark/generated/adsight-demo")}
+
+
 def test_export_workflow_is_manual_and_secret_free() -> None:
     path = REPO_ROOT / ".github" / "workflows" / "bench-export.yml"
     text = path.read_text(encoding="utf-8")
@@ -514,7 +531,7 @@ def test_export_workflow_is_manual_and_secret_free() -> None:
     triggers = data.get("on", data.get(True))
     assert list(triggers) == ["workflow_dispatch"]
     default = triggers["workflow_dispatch"]["inputs"]["plan"]["default"]
-    assert default == "benchmark/plans/haiku-demo-v2.yaml"
+    assert default == "benchmark/plans/haiku-demo-v3.yaml"
     steps = {s.get("name", s.get("uses")): s for s in data["jobs"]["export"]["steps"]}
     restore = steps["Restore benchmark state"]
     assert restore["uses"] == "actions/cache/restore@v4"

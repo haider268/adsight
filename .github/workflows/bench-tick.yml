@@ -3,7 +3,7 @@
 # To start:  add the repository secret ANTHROPIC_API_KEY, set the repository variable
 #            ANTHROPIC_BUDGET_USD (the hard spend cap; the plan's own budget_usd also
 #            applies, the lower wins), then set the repository variable BENCH_ENABLED=true.
-# Plan:      scheduled ticks run vars.BENCH_PLAN if set, else haiku-demo-v2.yaml.
+# Plan:      scheduled ticks run vars.BENCH_PLAN if set, else haiku-demo-v3.yaml.
 # To stop:   set BENCH_ENABLED=false. While it is not 'true' every scheduled run is skipped
 #            at no cost.
 #
@@ -22,7 +22,7 @@ on:
       plan:
         description: Run plan YAML
         required: true
-        default: benchmark/plans/haiku-demo-v2.yaml
+        default: benchmark/plans/haiku-demo-v3.yaml
 
 concurrency:
   group: bench-tick
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      PLAN: ${{ inputs.plan || vars.BENCH_PLAN || 'benchmark/plans/haiku-demo-v2.yaml' }}
+      PLAN: ${{ inputs.plan || vars.BENCH_PLAN || 'benchmark/plans/haiku-demo-v3.yaml' }}
     steps:
       - uses: actions/checkout@v4
 
