@@ -12,7 +12,7 @@ import sqlite3
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import duckdb
 
@@ -35,6 +35,7 @@ from adsight.llm.factory import parse_spec
 from adsight.llm.types import LLMRequest, LLMResponse, request_key
 from adsight.log import get_logger, set_run_id
 from adsight.semantic.model import SemanticModel
+from adsight.sql_safety import RENDERS, Render
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -214,6 +215,7 @@ class RunConfig:
     judge: str = "off"  # a model spec, or "off"
     salt: str = ""  # run-level salt: repeat runs are independent samples
     sample: int | None = None  # N questions spread over the categories
+    render: Render = "v4"  # how query results become prompt text (sql_safety.Render)
 
     @property
     def resolved_run_id(self) -> str:
@@ -278,6 +280,14 @@ class _Recorder:
         return await self.inner.complete(req, salt)
 
 
+def report_render(report: dict[str, Any]) -> Render:
+    """The rendering a report's run used; reports from before render versions are "v3"."""
+    render = report.get("render", "v3")
+    if render not in RENDERS:
+        raise ValueError(f"unknown render {render!r} in report {report.get('run_id')}")
+    return cast(Render, render)
+
+
 def rule_result(row: dict[str, Any]) -> bool:
     """A result row's rule check (rows written before the column fall back to the rule
     result kept in judge_json, else the final pass)."""
@@ -336,6 +346,7 @@ def build_report(
         "judge": cfg.judge,
         "sample": cfg.sample,
         "salt": cfg.salt,
+        "render": cfg.render,
         "questions": len(questions),
         "counts": dict(Counter(r["status"] for r in rows)),
         "per_category": per_category,
@@ -413,6 +424,7 @@ async def run_benchmark(
                 allowed_tables,
                 semantic=semantic,
                 salt=cfg.salt,
+                render=cfg.render,
             )
             verdict = score(q, result.answer)
             judged = await _judge(q, result.answer, judge_with)

@@ -7,7 +7,7 @@
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import duckdb
 import sqlglot
@@ -96,6 +96,54 @@ def row_sort_key(row: tuple[Any, ...]) -> tuple[tuple[bool, str, str], ...]:
     return tuple((v is None, type(v).__name__, str(v)) for v in row)
 
 
+Render = Literal["v3", "v4"]
+"""How query results become prompt text. "v3": rows sorted when the top-level SELECT has no
+ORDER BY, database order otherwise (the published v3 run). "v4": the same, and rows that
+tie on every ORDER BY key are put in a fixed order, because DuckDB does not always return
+tied rows in the same order."""
+RENDERS: tuple[Render, ...] = ("v3", "v4")
+
+
+def order_key_columns(root: exp.Expression, columns: list[str]) -> list[int] | None:
+    """Output positions of the top-level ORDER BY keys (by position, output name, or the
+    same expression as an output column); None when any key is not an output column."""
+    while isinstance(root, exp.Subquery):
+        root = root.this
+    order = root.args.get("order")
+    if order is None:
+        return []
+    selects = list(getattr(root, "selects", []))
+    texts = [s.unalias().sql(dialect="duckdb") for s in selects]
+    lowered = [c.casefold() for c in columns]
+    found: list[int] = []
+    for ordered in order.expressions:
+        key = ordered.this
+        if isinstance(key, exp.Literal) and key.is_int:
+            idx = int(key.this) - 1
+        elif isinstance(key, exp.Column) and lowered.count(key.name.casefold()) == 1:
+            idx = lowered.index(key.name.casefold())
+        elif key.sql(dialect="duckdb") in texts and len(texts) == len(columns):
+            idx = texts.index(key.sql(dialect="duckdb"))
+        else:
+            return None
+        if not 0 <= idx < len(columns):
+            return None
+        found.append(idx)
+    return found
+
+
+def break_ties(rows: list[tuple[Any, ...]], keys: list[int]) -> list[tuple[Any, ...]]:
+    """Keep the database order, but sort each run of rows equal on every key column."""
+    out: list[tuple[Any, ...]] = []
+    group: list[tuple[Any, ...]] = []
+    for row in rows:
+        if group and [row[i] for i in keys] != [group[0][i] for i in keys]:
+            out += sorted(group, key=row_sort_key)
+            group = []
+        group.append(row)
+    return out + sorted(group, key=row_sort_key)
+
+
 def _validated(sql: str, allowed_tables: set[str]) -> exp.Expression:
     try:
         parsed = sqlglot.parse(sql, dialect="duckdb")
@@ -153,9 +201,11 @@ def run_sql(
     allowed_tables: set[str],
     max_rows: int = 200,
     timeout_s: float = 10.0,
+    render: Render = "v4",
 ) -> SqlResult:
     """Validate and run `sql` on a read-only connection. Never raises: a rejection, a
-    database error or a timeout ("timeout") comes back in `error`.
+    database error or a timeout ("timeout") comes back in `error`. `render` picks how rows
+    are ordered for the prompt (see Render).
 
     Every call runs on its own cursor, never on `con` itself: questions run concurrently
     (sync graph nodes run in a thread pool) and a shared connection hands one query's
@@ -180,8 +230,10 @@ def run_sql(
         cur.execute(safe)
         columns = [d[0] for d in cur.description or []]
         # Without an ORDER BY the database order is arbitrary, and the rows go into the
-        # next prompt: fetch them all and sort them so replays see the same text.
-        fetched = cur.fetchall() if sort_rows else cur.fetchmany(max_rows + 1)
+        # next prompt: fetch them all and sort them so replays see the same text. Under v4
+        # ties are broken too, so every row is needed to know where a tie ends.
+        fetch_all = sort_rows or render == "v4"
+        fetched = cur.fetchall() if fetch_all else cur.fetchmany(max_rows + 1)
     except duckdb.Error as exc:
         if timed_out.is_set():
             return SqlResult(error="timeout")
@@ -194,6 +246,12 @@ def run_sql(
     all_rows = [tuple(r) for r in fetched]
     if sort_rows:
         all_rows.sort(key=row_sort_key)
+    elif render == "v4":
+        keys = order_key_columns(root, columns)
+        # None: an ORDER BY key is not an output column, so ties cannot be seen in the
+        # rows and the database order stands
+        if keys is not None:
+            all_rows = break_ties(all_rows, keys)
     rows = all_rows[:max_rows]
     return SqlResult(
         columns=columns,

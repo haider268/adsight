@@ -13,6 +13,7 @@ from adsight.benchmark.answer import AgentAnswer
 from adsight.llm.base import LLMProvider
 from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
+from adsight.sql_safety import Render
 from adsight.tuning import DEFAULT_TUNING, Tuning
 
 ARCHITECTURES: dict[str, Callable[..., Any]] = {
@@ -56,6 +57,7 @@ async def run_question(
     effort: Effort | None = None,
     semantic: SemanticModel | None = None,
     salt: str = "",
+    render: Render = "v4",
 ) -> RunResult:
     """Run one question through one architecture. Provider errors other than invalid
     output (daily limit, budget, cache miss, transient) propagate to the caller."""
@@ -71,6 +73,7 @@ async def run_question(
         meter=meter,
         semantic=semantic,
         salt=salt,
+        render=render,
     )
     started = time.perf_counter()
     error: str | None = None

@@ -150,3 +150,59 @@ def test_two_runs_send_identical_requests(
         assert provider.calls >= 2
         keys.append([request_key(r) for r in provider.requests])
     assert keys[0] == keys[1]
+
+
+# --- render versions ----------------------------------------------------------------------
+
+TIES = (
+    "SELECT 'weekly' AS metric, CAST(date AS DATE) AS period, SUM(spend) AS v "
+    "FROM daily_ad_metrics GROUP BY 2 "
+    "UNION ALL SELECT 'daily', CAST(date AS DATE), SUM(clicks) FROM daily_ad_metrics GROUP BY 2 "
+    "UNION ALL SELECT 'leads', CAST(date AS DATE), SUM(leads) FROM daily_ad_metrics GROUP BY 2 "
+    "ORDER BY period DESC"
+)
+
+
+def test_v4_breaks_order_by_ties_identically(con: duckdb.DuckDBPyConnection) -> None:
+    texts = {format_result(run_sql(con, TIES, TABLES, render="v4"), 25) for _ in range(200)}
+    assert len(texts) == 1
+    result = run_sql(con, TIES, TABLES, render="v4")
+    periods = [row[1] for row in result.rows]
+    assert periods == sorted(periods, reverse=True)  # the ORDER BY still holds
+    first_day = [row for row in result.rows if row[1] == periods[0]]
+    assert [row[0] for row in first_day] == ["daily", "leads", "weekly"]  # ties: fixed order
+
+
+def test_v3_keeps_the_database_order_with_ties(con: duckdb.DuckDBPyConnection) -> None:
+    sql = "SELECT * FROM (VALUES (1, 'b'), (1, 'a'), (0, 'c')) t(k, v) ORDER BY k"
+    database = [tuple(r) for r in con.execute(sql).fetchall()]
+    assert run_sql(con, sql, TABLES, render="v3").rows == database
+    assert run_sql(con, sql, TABLES, render="v4").rows == [(0, "c"), (1, "a"), (1, "b")]
+
+
+def test_order_key_columns_and_break_ties() -> None:
+    import sqlglot
+
+    from adsight.sql_safety import break_ties, order_key_columns
+
+    def keys(sql: str, columns: list[str]) -> list[int] | None:
+        return order_key_columns(sqlglot.parse_one(sql, dialect="duckdb"), columns)
+
+    assert keys("SELECT a, b FROM t ORDER BY 2", ["a", "b"]) == [1]
+    assert keys("SELECT a, b AS x FROM t ORDER BY x DESC, a", ["a", "x"]) == [1, 0]
+    assert keys("SELECT a, SUM(b) FROM t GROUP BY a ORDER BY SUM(b)", ["a", "sum(b)"]) == [1]
+    assert keys("SELECT a FROM t ORDER BY b", ["a"]) is None
+    assert keys("SELECT a FROM t", ["a"]) == []
+    rows = [(2, "z"), (1, "y"), (1, "x"), (0, "w")]
+    assert break_ties(rows, [0]) == [(2, "z"), (1, "x"), (1, "y"), (0, "w")]
+
+
+def test_reports_without_render_are_v3() -> None:
+    import pytest
+
+    from adsight.bench_run import report_render
+
+    assert report_render({}) == "v3"
+    assert report_render({"render": "v4"}) == "v4"
+    with pytest.raises(ValueError):
+        report_render({"render": "v9"})

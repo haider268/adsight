@@ -223,7 +223,10 @@ def test_cli_run_replay_and_status(
     assert result.exit_code == EXIT_FAILED, result.output
     assert "b0-fixture-scripted-six" in result.output
     assert "judge: off" in result.output
-    assert (tmp_path / "state" / "reports" / "b0-fixture-scripted-six.json").is_file()
+    report_file = tmp_path / "state" / "reports" / "b0-fixture-scripted-six.json"
+    assert json.loads(report_file.read_text(encoding="utf-8"))["render"] == "v4"
+    bad_render = runner.invoke(app, [*args, "--render", "v9"])
+    assert bad_render.exit_code == 2
     status = runner.invoke(app, ["bench", "status"])
     assert status.exit_code == 0, status.output
     assert "b0-fixture-scripted-six" in status.output and "failed" in status.output

@@ -515,7 +515,10 @@ def test_v3_plans_mirror_v2_and_the_pilot() -> None:
     v3 = load_plan(PLANS / "haiku-demo-v3.yaml")
     assert v3.name == "haiku-demo-v3" and v3.budget_usd == v2.budget_usd
     assert all(j.id.endswith("-v3") for j in v3.jobs)
-    assert [j.model_copy(update={"id": j.id[:-3] + "-v2"}) for j in v3.jobs] == v2.jobs
+    assert all(j.render == "v3" for j in v3.jobs)  # the published run
+    assert [
+        j.model_copy(update={"id": j.id[:-3] + "-v2", "render": "v4"}) for j in v3.jobs
+    ] == v2.jobs
     pilot = load_plan(PLANS / "haiku-pilot-v3.yaml")
     assert pilot.name == "haiku-pilot-v3"
     assert [j.id for j in pilot.jobs] == [f"pilot-b{i}-v3" for i in range(5)]
@@ -524,6 +527,9 @@ def test_v3_plans_mirror_v2_and_the_pilot() -> None:
         j.sample == 10 and j.batch and j.judge == HAIKU and j.model == HAIKU for j in pilot.jobs
     )
     assert {j.questions_dir for j in pilot.jobs} == {Path("benchmark/generated/adsight-demo")}
+    assert all(j.render == "v3" for j in pilot.jobs)
+    assert all(j.render == "v4" for j in v2.jobs)  # no render field: the default
+    assert {j.config(settings_for(Path("."))).render for j in v3.jobs} == {"v3"}
 
 
 def test_export_workflow_is_manual_and_secret_free() -> None:

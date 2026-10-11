@@ -16,7 +16,7 @@ from adsight.llm.factory import parse_spec
 from adsight.llm.schema import portable_schema
 from adsight.llm.types import Effort, LLMRequest, Msg
 from adsight.semantic.model import SemanticModel
-from adsight.sql_safety import SqlResult, run_sql
+from adsight.sql_safety import Render, SqlResult, run_sql
 from adsight.tuning import DEFAULT_TUNING, Tuning
 
 M = TypeVar("M", bound=BaseModel)
@@ -76,6 +76,7 @@ class Runtime:
     meter: Meter = field(default_factory=Meter)
     semantic: SemanticModel | None = None
     salt: str = ""  # run-level salt: repeat runs are independent samples
+    render: Render = "v4"  # how query results become prompt text (sql_safety.Render)
 
     @property
     def tuning(self) -> Tuning:
@@ -197,7 +198,7 @@ def execute_node(rt: Runtime) -> Any:
         for step in plan_steps:
             if not step["pending"]:
                 continue
-            result = run_sql(rt.con, step["sql"], rt.allowed_tables)
+            result = run_sql(rt.con, step["sql"], rt.allowed_tables, render=rt.render)
             rows = rt.tuning.result_rows
             step.update(result=result, text=format_result(result, rows), pending=False)
             step["rows"] = result.rows[:rows]

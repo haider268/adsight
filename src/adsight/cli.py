@@ -459,6 +459,12 @@ def bench_run(
     sample: Annotated[
         int | None, typer.Option("--sample", help="N questions spread over the categories.")
     ] = None,
+    render: Annotated[
+        str,
+        typer.Option(
+            "--render", help="Result rendering: v4 (default) or v3 (the published v3 run)."
+        ),
+    ] = "v4",
     wait_minutes: Annotated[
         float | None,
         typer.Option("--wait-minutes", help="Tick mode: stop (exit 4) if a batch outlasts this."),
@@ -482,12 +488,15 @@ def bench_run(
     from adsight.llm.cache import ResponseCache
     from adsight.llm.factory import ProviderPool
     from adsight.semantic.model import load_model
-    from adsight.sql_safety import open_agent_connection
+    from adsight.sql_safety import RENDERS, open_agent_connection
 
     settings = get_settings()
     configure_logging(settings.log_level)
     if cassette is not None and not replay:
         err_console.print("--cassette needs --replay")
+        raise typer.Exit(2)
+    if render not in RENDERS:
+        err_console.print(f"unknown render {render!r}; choose from {', '.join(RENDERS)}")
         raise typer.Exit(2)
     if arch not in ARCHITECTURES:
         err_console.print(f"unknown architecture {arch!r}; choose from {sorted(ARCHITECTURES)}")
@@ -521,6 +530,7 @@ def bench_run(
         judge=judge,
         salt=salt,
         sample=sample,
+        render=render,
     )
     store = RunStore(settings.runs_db_path)
     con = open_agent_connection(path)

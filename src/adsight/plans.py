@@ -37,7 +37,7 @@ from adsight.generate.context import build_context
 from adsight.llm.cache import ResponseCache, now_iso
 from adsight.llm.factory import ProviderPool, parse_spec
 from adsight.semantic.model import SemanticModel, load_model
-from adsight.sql_safety import open_agent_connection
+from adsight.sql_safety import Render, open_agent_connection
 
 ARCHS = ("b0", "b1", "b2", "b3", "b4")
 
@@ -55,6 +55,7 @@ class Job(BaseModel):
     judge: str = "off"
     sample: int | None = None
     salt: str = ""
+    render: Render = "v4"  # "v3" only for the published v3 run
 
     @field_validator("arch")
     @classmethod
@@ -87,6 +88,7 @@ class Job(BaseModel):
             judge=self.judge,
             salt=self.salt,
             sample=self.sample,
+            render=self.render,
         )
 
 

@@ -16,6 +16,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: demo-b1-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -25,6 +26,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: demo-b2-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -34,6 +36,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: demo-b3-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -43,6 +46,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: demo-b4-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -52,6 +56,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: gold-b0-v3
     questions_dir: benchmark
     semantic: semantic/demo.yaml
@@ -61,6 +66,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: gold-b4-v3
     questions_dir: benchmark
     semantic: semantic/demo.yaml
@@ -70,6 +76,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: null
     salt: ""
+    render: v3
   - id: var-b4-1-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -79,6 +86,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 20
     salt: "rep1"
+    render: v3
   - id: var-b4-2-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -88,3 +96,4 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 20
     salt: "rep2"
+    render: v3

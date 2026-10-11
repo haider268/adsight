@@ -12,6 +12,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 10
     salt: ""
+    render: v3
   - id: pilot-b1-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -21,6 +22,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 10
     salt: ""
+    render: v3
   - id: pilot-b2-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -30,6 +32,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 10
     salt: ""
+    render: v3
   - id: pilot-b3-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -39,6 +42,7 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 10
     salt: ""
+    render: v3
   - id: pilot-b4-v3
     questions_dir: benchmark/generated/adsight-demo
     semantic: semantic/demo.yaml
@@ -48,3 +52,4 @@ jobs:
     judge: anthropic:claude-haiku-4-5
     sample: 10
     salt: ""
+    render: v3

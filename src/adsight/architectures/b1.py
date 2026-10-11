@@ -22,7 +22,7 @@ from adsight.benchmark.answer import AgentAnswer
 from adsight.llm.base import LLMProvider
 from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
-from adsight.sql_safety import run_sql
+from adsight.sql_safety import Render, run_sql
 
 STEP_LIMIT_SUMMARY = "step limit reached"
 
@@ -47,9 +47,11 @@ def build_graph(
     meter: Meter | None = None,
     semantic: SemanticModel | None = None,
     salt: str = "",
+    render: Render = "v4",
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.render = render
     rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
@@ -77,7 +79,7 @@ def build_graph(
 
     def act(state: AgentState) -> AgentState:
         last = state["steps"][-1]
-        result = run_sql(rt.con, last["sql"], rt.allowed_tables)
+        result = run_sql(rt.con, last["sql"], rt.allowed_tables, render=rt.render)
         step = {
             "node": "act",
             "thought": last["thought"],

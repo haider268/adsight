@@ -27,6 +27,7 @@ from adsight.architectures.common import (
 from adsight.llm.base import LLMProvider
 from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
+from adsight.sql_safety import Render
 
 
 def answer_node(rt: Runtime) -> Any:
@@ -51,9 +52,11 @@ def build_graph(
     meter: Meter | None = None,
     semantic: SemanticModel | None = None,
     salt: str = "",
+    render: Render = "v4",
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.render = render
     rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
