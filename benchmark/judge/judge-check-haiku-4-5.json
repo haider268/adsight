@@ -1,0 +1,74 @@
+{
+  "cases": 30,
+  "confusion": {
+    "both_fail": 11,
+    "both_pass": 17,
+    "judge_only_pass": 1,
+    "label_only_pass": 1
+  },
+  "disagreements": [
+    {
+      "id": "J07",
+      "judge": {
+        "identifies_true_cause": true,
+        "invents_unsupported_cause": false,
+        "passed": true
+      },
+      "label": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": false,
+        "passed": false
+      },
+      "reasoning": "The reference identifies broken conversion tracking as the true cause of the lead drop, supported by the observation that clicks remained steady (~339/day) while leads fell to 2, with no logged changes. The agent's answer correctly rules out the budget increase as the cause and identifies that conversion tracking is broken (describing it as 'conversion efficiency collapse' and 'zero conversions' despite maintained traffic). The agent accurately notes that no other logged changes explain the pattern and that the campaign ran with consistent traffic but zero conversions. The agent does not invent any unsupported cause\u2014it explicitly states the budget increase 'did not cause' the drop and correctly points to the tracking/conversion measurement failure as the explanation, matching the reference's identification of broken conversion tracking."
+    },
+    {
+      "id": "J11",
+      "judge": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": false,
+        "passed": false
+      },
+      "label": {
+        "identifies_true_cause": true,
+        "invents_unsupported_cause": false,
+        "passed": true
+      },
+      "reasoning": "The reference states that the true cause is normal week-to-week variation in the conversion rate (the share of clicks that became leads moving from 0.0266 to 0.0394), with spend and clicks remaining flat. The agent's answer correctly identifies that spend, impressions, and clicks remained stable, and correctly notes that no logged changes explain the jump. The agent accurately describes the symptom (leads increased) and acknowledges improved conversion efficiency. However, the agent describes this as 'better conversion efficiency' and improvement in conversion performance, which characterizes it as something more than normal variation\u2014suggesting a cause when the reference explicitly states this is just normal week-to-week variation with no underlying cause. The agent does not identify the true cause: that this is ordinary, unexplained week-to-week fluctuation in conversion rate. Instead, the phrasing 'driven by improved conversion efficiency' and 'better conversion performance' implies there was a positive driver or improvement, rather than simply normal variation. The agent does not invent a false external event (no budget change, audience change, or other event is claimed), but does mischaracterize the nature of the cause by framing normal variation as 'improvement' or 'better performance.'"
+    },
+    {
+      "id": "J23",
+      "judge": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": true,
+        "passed": false
+      },
+      "label": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": false,
+        "passed": false
+      },
+      "reasoning": "The reference states the true cause is simply the difference in month length: February has 28 days while January has 31 days, with spend per day remaining constant at approximately 69.80 in both months. The agent's answer acknowledges that 'no logged changes' occurred, which aligns with the reference. However, the agent then speculates about 'lower campaign activity or reduced budget allocation during February' as a potential explanation, which contradicts their own statement that no logged changes explain the decline. The agent does not explicitly identify the month-length difference as the cause, instead focusing on correlated metrics (impressions and clicks declining proportionally to spend). The reference makes clear that the spend difference is purely due to calendar days (28 vs 31), not any change in daily spend rate. The agent fails to name the true cause (month length) and instead invents an alternative explanation ('lower campaign activity or reduced budget allocation') despite correctly noting no logged changes occurred."
+    },
+    {
+      "id": "J30",
+      "judge": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": true,
+        "passed": false
+      },
+      "label": {
+        "identifies_true_cause": false,
+        "invents_unsupported_cause": false,
+        "passed": false
+      },
+      "reasoning": "The reference states that the true cause of the spending difference is the month length difference (January has 31 days, February has 28 days), with spend per day remaining consistent (~64.70-65.30). The agent's answer acknowledges that no logged changes occurred (no pauses, budget changes, or operational changes), which is correct. However, the agent then attributes the decline to 'organic performance variation' with 'click volume and conversion patterns remained relatively stable.' This is problematic because: 1) The agent does not identify the true cause (month length difference) as the explanation, 2) The agent invents an unsupported cause by attributing it to 'organic performance variation' when the reference explicitly states nothing changed and the difference is simply due to fewer days in February. The agent's reasoning about stable clicks and conversions doesn't explain why spend would differ if spend per day was constant - this actually supports the month length explanation, not performance variation. The agent had the right data (no logged changes) but drew the wrong conclusion by not calculating or mentioning the month length difference."
+    }
+  ],
+  "field_agreement": {
+    "identifies_true_cause": 28,
+    "invents_unsupported_cause": 28
+  },
+  "final_agreement": 28,
+  "invalid": 0,
+  "model": "anthropic:claude-haiku-4-5"
+}
