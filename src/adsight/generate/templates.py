@@ -1016,11 +1016,24 @@ PROBES: tuple[Probe, ...] = (
 AGE_RANGE_RE = re.compile(r"(?<![0-9a-z])\d{2}[_-]\d{2}(?![0-9a-z])")  # broad_45_65
 
 
+def tokens(text: str) -> list[str]:
+    """Lowercase letter-and-digit runs: 'Video_Views 7d' -> ['video', 'views', '7d']."""
+    return [t for t in re.split(r"[^a-z0-9]+", text.casefold()) if t]
+
+
+def has_word(text: str, word: str) -> bool:
+    """Whether `word` (possibly several tokens) is a contiguous run of whole tokens of
+    `text`: 'os' matches 'os' and 'device_os' but never 'cost'."""
+    have, want = tokens(text), tokens(word)
+    n = len(want)
+    return n > 0 and any(have[i : i + n] == want for i in range(len(have) - n + 1))
+
+
 def probe_answerable(env: Env, probe: Probe) -> bool:
-    """Whether the data might answer a probe: one of its words appears inside a column name
-    or inside a value of a text attribute, or (demographics) a value holds an age range."""
+    """Whether the data might answer a probe: one of its words is a whole word of a column
+    name or of a text attribute value, or (demographics) a value holds an age range."""
     texts = [*env.columns, *env.text_values]
-    if any(w in text for w in probe.words for text in texts):
+    if any(has_word(text, w) for w in probe.words for text in texts):
         return True
     return probe.concept == "demographics" and any(AGE_RANGE_RE.search(v) for v in env.text_values)
 

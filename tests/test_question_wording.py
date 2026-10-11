@@ -1,12 +1,14 @@
 import dataclasses
+import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pytest
 
 from adsight.agent.context import schema_card
-from adsight.benchmark.questions import RefuseScoring, load_questions
+from adsight.benchmark.questions import RefuseScoring, RootCauseScoring, load_questions
 from adsight.data.build import open_readonly
 from adsight.generate.context import build_context
 from adsight.generate.templates import (
@@ -15,7 +17,9 @@ from adsight.generate.templates import (
     Probe,
     available_probes,
     build_env,
+    has_word,
     probe_answerable,
+    tokens,
 )
 from adsight.semantic.model import load_model
 
@@ -77,6 +81,25 @@ def test_text_attribute_values_rule_probes_out(env: Env) -> None:
     assert not probe_answerable(dated, probe("demographics"))
 
 
+def test_probe_words_match_whole_tokens(env: Env) -> None:
+    def ruled_out(concept: str, columns: list[str], values: list[str]) -> bool:
+        return probe_answerable(
+            dataclasses.replace(env, columns=columns, text_values=values), probe(concept)
+        )
+
+    for word in ("image", "advantage_plus", "cost"):
+        for concept in ("demographics", "device"):
+            assert not ruled_out(concept, [word], []), (word, concept)
+            assert not ruled_out(concept, [], [word]), (word, concept)
+    assert ruled_out("demographics", ["age_group"], [])
+    assert ruled_out("demographics", [], ["broad_45_65"])
+    assert ruled_out("video", ["video_views"], [])
+    assert not ruled_out("video", ["views"], [])
+    assert ruled_out("device", ["os"], [])
+    assert has_word("device_os", "os") and not has_word("cost", "os")
+    assert tokens("Video_Views 7d") == ["video", "views", "7d"]
+
+
 def test_card_lists_unmapped_columns(demo_con: duckdb.DuckDBPyConnection) -> None:
     model = load_model(DEMO_YAML)
     card = schema_card(model, build_context(model, demo_con), demo_con)
@@ -95,9 +118,33 @@ def test_gold_text_changes() -> None:
     assert isinstance(un04.scoring, RefuseScoring)
     assert un04.scoring.reason == "There is no gender breakdown in the data."
     for q in gold.values():
-        if q.notes:
+        if q.notes and q.id not in ("LK07", "RC12", "RC15"):
             assert f"({q.notes})" in q.question, q.id
+    assert gold["LK07"].question == (
+        "What is the current daily budget of the Homeowners 35-65 ad set "
+        "(current = at the end of the data)?"
+    )
+    assert gold["RC12"].question.endswith("rose in the week of 18 May?")
+    assert gold["RC15"].question.endswith("cause the lead drop on 8 and 9 June?")
     assert gold["AG01"].question == (
         "Which campaign had the lowest cost per lead over the last 30 days? "
         "(last 30 days = 2026-05-31 to 2026-06-29)"
     )
+
+
+def test_no_question_hints_at_its_answer(bench_manifest: dict[str, Any]) -> None:
+    sets = [load_questions(path) for path in (GOLD, DEMO, FLAT)]
+    summaries = [
+        q.scoring.reference_summary
+        for questions in sets
+        for q in questions
+        if isinstance(q.scoring, RootCauseScoring) and q.scoring.reference_summary
+    ]
+    causes = [str(i["cause"]) for i in bench_manifest["incidents"]]
+    assert summaries and causes
+    for questions in sets:
+        for q in questions:
+            text = q.question.casefold()
+            assert not re.search(r"\bdecoy", text), q.id
+            for hint in [*summaries, *causes]:
+                assert hint.casefold() not in text, (q.id, hint)
