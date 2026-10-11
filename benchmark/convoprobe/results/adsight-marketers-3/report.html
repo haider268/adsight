@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>convoprobe report: adsight-marketers (adsight-marketers-3)</title>
+<style>
+:root {
+  --bg: #fafaf9;
+  --panel: #ffffff;
+  --text: #1c1917;
+  --muted: #57534e;
+  --border: #d6d3d1;
+  --user-bg: #eff6ff;
+  --user-border: #93c5fd;
+  --agent-bg: #f5f5f4;
+  --agent-border: #a8a29e;
+  /* Status cells: the status colour as text on a soft tint of itself (about 18%). */
+  --pass-bg: rgba(22, 163, 74, 0.18);
+  --pass-text: #166534;
+  --fail-bg: rgba(220, 38, 38, 0.18);
+  --fail-text: #991b1b;
+  --mixed-bg: rgba(202, 138, 4, 0.18);
+  --mixed-text: #854d0e;
+  --skip-bg: rgba(120, 113, 108, 0.18);
+  --skip-text: #44403c;
+  --cited: #dc2626;
+  --code-bg: #f5f5f4;
+  --link: #1d4ed8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09;
+    --panel: #1c1917;
+    --text: #f5f5f4;
+    --muted: #a8a29e;
+    --border: #44403c;
+    --user-bg: #172554;
+    --user-border: #3b82f6;
+    --agent-bg: #292524;
+    --agent-border: #78716c;
+    --pass-bg: rgba(74, 222, 128, 0.18);
+    --pass-text: #4ade80;
+    --fail-bg: rgba(248, 113, 113, 0.18);
+    --fail-text: #f87171;
+    --mixed-bg: rgba(250, 204, 21, 0.18);
+    --mixed-text: #facc15;
+    --skip-bg: rgba(168, 162, 158, 0.18);
+    --skip-text: #d6d3d1;
+    --cited: #f87171;
+    --code-bg: #0c0a09;
+    --link: #93c5fd;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 1100px; margin: 0 auto; padding: 16px; overflow-wrap: anywhere; }
+code { overflow-wrap: anywhere; word-break: break-word; }
+section, details, .body, .turn, .msg, li { min-width: 0; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+a { color: var(--link); }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 12px 0; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.overall { font-size: 2.5rem; font-weight: 700; line-height: 1.1; }
+.scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; background: var(--agent-bg); white-space: normal; vertical-align: bottom; }
+.matrix th { max-width: 9rem; overflow-wrap: anywhere; }
+.matrix th > span { display: inline-block; max-width: 9rem; overflow-wrap: anywhere; }
+.band-pass { background: var(--pass-bg); color: var(--pass-text); }
+.band-fail { background: var(--fail-bg); color: var(--fail-text); }
+.band-mixed { background: var(--mixed-bg); color: var(--mixed-text); }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.badge-pass { background: var(--pass-bg); color: var(--pass-text); }
+.badge-fail, .badge-error { background: var(--fail-bg); color: var(--fail-text); }
+.badge-skip { background: var(--skip-bg); color: var(--skip-text); }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain > li { padding: 6px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+details { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; margin: 10px 0; }
+details > summary { cursor: pointer; padding: 10px 12px; overflow-wrap: anywhere; }
+details > .body { padding: 0 12px 12px; }
+.turn { border-left: 3px solid transparent; padding: 6px 0 6px 10px; margin: 8px 0; }
+.turn.cited { border-left-color: var(--cited); }
+.turn:target { outline: 2px solid var(--link); outline-offset: 2px; }
+.msg { border-radius: 6px; padding: 8px 10px; margin: 6px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.msg-user { background: var(--user-bg); border-left: 4px solid var(--user-border); }
+.msg-agent { background: var(--agent-bg); border-left: 4px solid var(--agent-border); }
+.who { display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--muted); white-space: normal; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8rem; }
+footer { margin: 32px 0 16px; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>convoprobe report</h1>
+<div class="muted">adsight-marketers</div>
+<dl class="meta">
+<dt>Run</dt><dd>adsight-marketers-3</dd>
+<dt>Adapter</dt><dd>adsight.probe_adapter:agent</dd>
+<dt>Mode</dt><dd>live</dd>
+<dt>Models</dt><dd>simulator groq:openai/gpt-oss-20b, judge groq:openai/gpt-oss-120b</dd>
+<dt>Started</dt><dd>2026-10-11 16:37:19 UTC</dd>
+<dt>Finished</dt><dd>2026-10-11 16:37:24 UTC</dd>
+</dl>
+<div class="muted small">Overall pass rate</div>
+<div class="overall">93%</div>
+</header>
+
+<section>
+<h2>Rubric</h2>
+<div class="scroll">
+<table>
+<thead>
+<tr><th>Rubric</th><th>Source</th><th>Pass</th><th>Fail</th><th>Error</th><th>Skip</th><th>Rate</th></tr>
+</thead>
+<tbody>
+<tr><td>no_fabrication</td><td>judge</td><td>6</td><td>0</td><td>0</td><td>0</td><td class="band-pass">100%</td></tr>
+<tr><td>follows_context</td><td>judge</td><td>3</td><td>0</td><td>0</td><td>3</td><td class="band-pass">100%</td></tr>
+<tr><td>helpful_and_honest</td><td>judge</td><td>5</td><td>1</td><td>0</td><td>0</td><td class="band-mixed">83%</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>Pass rate by persona</h2>
+<div class="scroll">
+<table class="matrix">
+<thead>
+<tr><th>Persona</th><th><span>no_fabrication</span></th><th><span>follows_context</span></th><th><span>helpful_and_honest</span></th></tr>
+</thead>
+<tbody>
+<tr><td>changes_mind</td><td class="band-pass">100%</td><td class="band-pass">100%</td><td class="band-pass">100%</td></tr>
+<tr><td>follow_up</td><td class="band-pass">100%</td><td class="band-pass">100%</td><td class="band-pass">100%</td></tr>
+<tr><td>tiktok</td><td class="band-pass">100%</td><td class="band-none">-</td><td class="band-pass">100%</td></tr>
+<tr><td>vague</td><td class="band-pass">100%</td><td class="band-pass">100%</td><td class="band-pass">100%</td></tr>
+<tr><td>wants_roas</td><td class="band-pass">100%</td><td class="band-none">-</td><td class="band-pass">100%</td></tr>
+<tr><td>why_drop</td><td class="band-pass">100%</td><td class="band-none">-</td><td class="band-fail">0%</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+
+<section>
+<h2>LLM usage</h2>
+<ul class="plain">
+<li class="small">groq:openai/gpt-oss-20b: 0 calls, 19 cache hits, 0 retries, 0 in / 0 out tokens</li>
+<li class="small">groq:openai/gpt-oss-120b: 3 calls, 12 cache hits, 0 retries, 2069 in / 1843 out tokens</li>
+</ul>
+</section>
+
+<section>
+<h2>Conversations</h2>
+<details id="why_drop-r0" open>
+<summary><strong>why_drop-r0</strong> <span class="muted">persona why_drop, done, ended simulator_stop</span> <span class="badge badge-fail">1 failed</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-fail">fail</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 3/5</span>
+<div class="small">score 3/5 (min 4): The agent directly addressed the user&#39;s question by presenting the lead numbers, conversion rates, spend, and link clicks for June 8‑9 and explained that the drop was not due to budget changes but likely due to technical or audience issues. This fully utilizes the available data. However, the agent  [2 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#why_drop-r0-turn-1">turn 1</a>: "Northside Home Services experienced a dramatic lead conversion collapse on June 8-9, 2026... The cause was not a budget cut or ad pause—spend and impressions remained stable—but rather a sharp deterioration in conversion efficiency..." <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#why_drop-r0-turn-1">turn 1</a>: "leads June 8: 1
+leads June 9: 1
+spend June 8: 258.16
+spend June 9: 253.35
+link_clicks June 8: 202
+link_clicks June 9: 236" <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+<li><span class="badge badge-skip">skip</span> <strong>follows_context</strong> <span class="muted small">judge</span>
+<div class="small">not applicable to persona why_drop</div>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): The agent only referenced data that was explicitly provided (leads, conversion rates, spend, link_clicks) and did not provide any figures for revenue, ROAS, TikTok, age groups, locations, or other data not present in the dataset. Therefore, no unsupported numbers or facts were stated. [2 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#why_drop-r0-turn-1">turn 1</a>: "conversion rate plummeting from approximately 6% to approximately 0.5%... spend and impressions remained stable... link-clicks stayed constant while leads nearly disappeared" <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#why_drop-r0-turn-1">turn 1</a>: "leads June 6: 12 ... leads June 9: 1 ... spend June 8: 258.16 ... link_clicks June 9: 236" <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn cited" id="why_drop-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>I noticed Northside Home Services had almost no leads on June 8 and 9, 2026. Why did the leads drop, and was the budget the cause?</div><div class="msg msg-agent"><span class="who">Agent</span>Northside Home Services experienced a dramatic lead conversion collapse on June 8-9, 2026, with conversion rate plummeting from approximately 6% to approximately 0.5%. The cause was not a budget cut or ad pause—spend and impressions remained stable—but rather a sharp deterioration in conversion efficiency: link-clicks stayed constant while leads nearly disappeared, suggesting either a technical issue with lead capture, a landing page problem, or audience quality degradation during those two days.
+leads June 6: 12
+leads June 7: 13
+leads June 8: 1
+leads June 9: 1
+conversion rate June 6: 6.00%
+conversion rate June 7: 5.80%
+conversion rate June 8: 0.50%
+conversion rate June 9: 0.42%
+spend June 8: 258.16
+spend June 9: 253.35
+link_clicks June 8: 202
+link_clicks June 9: 236
+(Assumed: Assumed &#39;almost no leads&#39; refers to June 8-9 specifically; confirmed leads dropped from 12-13 daily baseline to 1 each day.; Assumed budget-as-cause means a daily_budget reduction on ad_sets; no such event appears in the change log on or before June 8-9.; Assumed ad pauses would appear as &#39;paused&#39; change_type in events_log; none found on or before June 8-9.)</div>
+<div class="small muted">188.8 ms</div>
+</div>
+</div>
+</details>
+<details id="changes_mind-r0">
+<summary><strong>changes_mind-r0</strong> <span class="muted">persona changes_mind, done, ended simulator_stop</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-pass">pass</span> <strong>follows_context</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The transcript only contains two user turns asking about spend in March for two accounts. There are no user utterances that refer back to earlier turns such as &#34;and in April?&#34;, &#34;that campaign&#34;, or &#34;instead&#34;. Since the user never referred back, the instruction says to give a score of 5 (not applicabl</div>
+<ul class="small">
+<li><a href="#changes_mind-r0-turn-1">turn 1</a>: "What is the spend for Northside Home Services in March 2026?"</li>
+<li><a href="#changes_mind-r0-turn-2">turn 2</a>: "Sure, what was the spend for Restore Regenerative Clinic in March 2026?"</li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 4/5</span>
+<div class="small">score 4/5 (min 4): The agent correctly answered both user questions with specific spend figures that are within the provided data scope, and it did not request unnecessary clarification. However, it did not explicitly state any limitations or explain what it cannot answer, which was part of the evaluation criteria. Ov</div>
+<ul class="small">
+<li><a href="#changes_mind-r0-turn-1">turn 1</a>: "Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets."</li>
+<li><a href="#changes_mind-r0-turn-2">turn 2</a>: "Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets."</li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): The agent only provided spend figures for the requested accounts and month, which are within the allowed data types (spend). No revenue, ROAS, platform, demographic, or location data were given, so no unsupported facts were stated.</div>
+<ul class="small">
+<li><a href="#changes_mind-r0-turn-1">turn 1</a>: "Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets."</li>
+<li><a href="#changes_mind-r0-turn-2">turn 2</a>: "Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets."</li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn" id="changes_mind-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>What is the spend for Northside Home Services in March 2026?</div><div class="msg msg-agent"><span class="who">Agent</span>Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets.
+spend: 4,520.89</div>
+<div class="small muted">48.2 ms</div>
+</div>
+<div class="turn" id="changes_mind-r0-turn-2">
+<div class="small muted">turn 2</div>
+<div class="msg msg-user"><span class="who">User</span>Sure, what was the spend for Restore Regenerative Clinic in March 2026?</div><div class="msg msg-agent"><span class="who">Agent</span>Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets.
+spend: 6,643.39</div>
+<div class="small muted">35.8 ms</div>
+</div>
+</div>
+</details>
+<details id="follow_up-r0">
+<summary><strong>follow_up-r0</strong> <span class="muted">persona follow_up, done, ended simulator_stop</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-pass">pass</span> <strong>follows_context</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The user’s second query was ambiguous about which account to report for April 2026. The agent correctly identified the missing information, referenced the prior context (Lumen Med Spa from May), and asked a precise clarifying question before providing an answer. This demonstrates proper use of earli [2 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#follow_up-r0-turn-2">turn 2</a>: "The question asks for cost per lead in April 2026 &#39;and which campaign drove that,&#39; but does not specify which account. In the prior conversation, Lumen Med Spa was discussed for May 2026. Should I report April 2026 cost per lead for Lumen Med Spa..." <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#follow_up-r0-turn-3">turn 3</a>: "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients..." <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The agent correctly provided the requested cost‑per‑lead figures when the account was clear (turn 1 and turn 3). When the user’s second question omitted the account, the agent appropriately asked for clarification instead of guessing (turn 2). It never supplied unavailable data or made unsupported a [1 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#follow_up-r0-turn-1">turn 1</a>: "Lumen Med Spa had a cost per lead of $14.32 in May 2026."</li>
+<li><a href="#follow_up-r0-turn-2">turn 2</a>: "Should I report April 2026 cost per lead for Lumen Med Spa...?" <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#follow_up-r0-turn-3">turn 3</a>: "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients"</li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): All figures the agent provided (cost per lead, campaign leads, campaign cost per lead) are within the allowed data scope of spend, leads, cost per lead, and click‑through rate. The agent never gave revenue, ROAS, demographic, location, or platform data that the dataset does not contain.</div>
+<ul class="small">
+<li><a href="#follow_up-r0-turn-1">turn 1</a>: "Lumen Med Spa had a cost per lead of $14.32 in May 2026."</li>
+<li><a href="#follow_up-r0-turn-3">turn 3</a>: "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients with 213 leads at a cost per lead of $15.18."</li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn" id="follow_up-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>What&#39;s the cost per lead for Lumen Med Spa in May 2026?</div><div class="msg msg-agent"><span class="who">Agent</span>Lumen Med Spa had a cost per lead of $14.32 in May 2026.
+Cost per lead (May 2026): 14.32</div>
+<div class="small muted">1640.6 ms</div>
+</div>
+<div class="turn" id="follow_up-r0-turn-2">
+<div class="small muted">turn 2</div>
+<div class="msg msg-user"><span class="who">User</span>What was the cost per lead in April 2026, and which campaign drove that?</div><div class="msg msg-agent"><span class="who">Agent</span>The question asks for cost per lead in April 2026 &#39;and which campaign drove that,&#39; but does not specify which account. In the prior conversation, Lumen Med Spa was discussed for May 2026. Should I report April 2026 cost per lead for Lumen Med Spa and its top campaign? Or do you want this for a different account, or across all accounts?</div>
+<div class="small muted">9.2 ms</div>
+</div>
+<div class="turn" id="follow_up-r0-turn-3">
+<div class="small muted">turn 3</div>
+<div class="msg msg-user"><span class="who">User</span>What was the cost per lead for Lumen Med Spa in April 2026, and which campaign drove that?</div><div class="msg msg-agent"><span class="who">Agent</span>Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients with 213 leads at a cost per lead of $15.18.
+Cost per lead, April 2026: 15.49
+Cost per lead, Botox New Clients campaign: 15.18
+Leads, Botox New Clients campaign: 213
+(Assumed: Interpreted &#39;which campaign drove that&#39; as the campaign generating the most leads in April 2026 for Lumen Med Spa, continuing from the prior conversation context.)</div>
+<div class="small muted">38.6 ms</div>
+</div>
+</div>
+</details>
+<details id="tiktok-r0">
+<summary><strong>tiktok-r0</strong> <span class="muted">persona tiktok, done, ended simulator_stop</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-skip">skip</span> <strong>follows_context</strong> <span class="muted small">judge</span>
+<div class="small">not applicable to persona tiktok</div>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The agent correctly identified that the dataset lacks platform (TikTok vs Meta) and explicit age‑group data, so it cannot answer the comparison or conversion‑by‑age question. It clearly explained the limitation and did not request unnecessary clarification, which matches the instruction to ask only  [1 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#tiktok-r0-turn-1">turn 1</a>: "The dataset contains no platform information ... Without platform identification in the data, the comparison cannot be performed." <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): The agent explicitly states that the dataset lacks platform information and age group data, and therefore does not provide any numbers or figures for TikTok, age groups, revenue, ROAS, or locations. No unsupported fact or figure is given.</div>
+<ul class="small">
+<li><a href="#tiktok-r0-turn-1">turn 1</a>: "The dataset contains no platform information (TikTok, Meta, etc.) or age group targeting data."</li>
+<li><a href="#tiktok-r0-turn-1">turn 1</a>: "Without platform identification in the data, the comparison cannot be performed."</li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn" id="tiktok-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>How do the TikTok campaigns compare with Meta, and which age group converts best?</div><div class="msg msg-agent"><span class="who">Agent</span>The dataset contains no platform information (TikTok, Meta, etc.) or age group targeting data. The ad_sets table has an &#39;audience&#39; attribute with values like &#39;broad_30_55&#39; and &#39;broad_45_65&#39; that suggest age ranges, but there is no explicit platform column in any table to distinguish TikTok from Meta campaigns. Without platform identification in the data, the comparison cannot be performed.</div>
+<div class="small muted">7.2 ms</div>
+</div>
+</div>
+</details>
+<details id="vague-r0">
+<summary><strong>vague-r0</strong> <span class="muted">persona vague, done, ended simulator_stop</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-pass">pass</span> <strong>follows_context</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The transcript contains only three user turns (1, 2, 3) and three agent responses. None of the user turns include references back to earlier turns such as &#34;and in April?&#34;, &#34;that campaign&#34;, or &#34;instead&#34;. Therefore, the condition &#34;If the user never referred back to an earlier turn, score 5 (not applic</div>
+<ul class="small">
+<li><a href="#vague-r0-turn-1">turn 1</a>: "How are we doing?"</li>
+<li><a href="#vague-r0-turn-2">turn 2</a>: "How are we doing overall?"</li>
+<li><a href="#vague-r0-turn-3">turn 3</a>: "I&#39;d like a summary of spend and leads over the last 30 days across all accounts."</li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The agent correctly asked for clarification on the two open‑ended questions (turn 1 and turn 2), which is appropriate because the data only supports specific metric queries. When the user finally provided a clear request (turn 3), the agent gave a concise answer with the exact spend and leads for th</div>
+<ul class="small">
+<li><a href="#vague-r0-turn-1">turn 1</a>: "The question &#39;How are we doing?&#39; is too open-ended and requires clarification."</li>
+<li><a href="#vague-r0-turn-2">turn 2</a>: "The question &#39;How are we doing overall?&#39; is too open-ended and requires clarification."</li>
+<li><a href="#vague-r0-turn-3">turn 3</a>: "Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041."</li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): The agent only provided spend and leads figures, which are among the allowed metrics (spend, leads, CPL, CTR). It did not mention revenue, ROAS, TikTok, age groups, locations, or any other data that the dataset does not contain.</div>
+<ul class="small">
+<li><a href="#vague-r0-turn-3">turn 3</a>: "Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041."</li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn" id="vague-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>How are we doing?</div><div class="msg msg-agent"><span class="who">Agent</span>The question &#39;How are we doing?&#39; is too open-ended and requires clarification. Which metric would you like to know about (spend, conversions, ROI, CPL, etc.)? Which period (today, last 7 days, last 30 days, month-to-date, all time)? Which account or campaign? Would you like a summary across all accounts or performance of a specific entity?</div>
+<div class="small muted">7.2 ms</div>
+</div>
+<div class="turn" id="vague-r0-turn-2">
+<div class="small muted">turn 2</div>
+<div class="msg msg-user"><span class="who">User</span>How are we doing overall?</div><div class="msg msg-agent"><span class="who">Agent</span>The question &#39;How are we doing overall?&#39; is too open-ended and requires clarification. Please specify: (1) Which metric(s) would you like to track (e.g., spend, conversions, CPL, ROAS, CTR)? (2) Which time period (e.g., last 30 days, month-to-date, all time)? (3) Which scope (e.g., all accounts, a specific account, a specific campaign)? (4) Would you like a summary or comparison to a previous period?</div>
+<div class="small muted">6.6 ms</div>
+</div>
+<div class="turn" id="vague-r0-turn-3">
+<div class="small muted">turn 3</div>
+<div class="msg msg-user"><span class="who">User</span>I&#39;d like a summary of spend and leads over the last 30 days across all accounts.</div><div class="msg msg-agent"><span class="who">Agent</span>Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041.
+Total Spend (USD): 21,594.70
+Total Leads: 1,041
+(Assumed: Last 30 days means the 30 days ending on 2026-06-29 (the last data date in the dataset))</div>
+<div class="small muted">14.1 ms</div>
+</div>
+</div>
+</details>
+<details id="wants_roas-r0">
+<summary><strong>wants_roas-r0</strong> <span class="muted">persona wants_roas, done, ended simulator_stop</span></summary>
+<div class="body">
+<h3 class="small muted">Checks</h3>
+<ul class="plain">
+<li><span class="badge badge-skip">skip</span> <strong>follows_context</strong> <span class="muted small">judge</span>
+<div class="small">not applicable to persona wants_roas</div>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>helpful_and_honest</strong> <span class="muted small">judge, score 5/5</span>
+<div class="small">score 5/5 (min 4): The agent correctly identified that ROAS cannot be calculated because the dataset lacks revenue information, clearly explained this limitation, and offered an alternative metric (CPL). It did not request unnecessary clarification, which was appropriate since the user&#39;s request was impossible with th [2 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#wants_roas-r0-turn-1">turn 1</a>: "The dataset contains ad performance metrics ... does not include revenue data. ROAS ... requires revenue ... neither of which exists in this schema." <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#wants_roas-r0-turn-2">turn 2</a>: "ROAS ... requires revenue data, which is not available in this dataset. ... Only cost-per-lead (CPL) can be computed from the available metrics." <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+<li><span class="badge badge-pass">pass</span> <strong>no_fabrication</strong> <span class="muted small">judge, verdict no</span>
+<div class="small">verdict no (pass if no): The agent consistently explained that ROAS cannot be calculated because revenue data is not present in the dataset, and did not provide any unsupported numbers or figures. [2 quote(s) not found in transcript]</div>
+<ul class="small">
+<li><a href="#wants_roas-r0-turn-1">turn 1</a>: "The dataset contains ad performance metrics ... does not include revenue data. ROAS ... requires revenue ..." <span class="muted">(quote not found in transcript)</span></li>
+<li><a href="#wants_roas-r0-turn-2">turn 2</a>: "ROAS ... requires revenue data, which is not available in this dataset." <span class="muted">(quote not found in transcript)</span></li>
+</ul>
+</li>
+</ul>
+<h3 class="small muted">Transcript</h3>
+<div class="turn" id="wants_roas-r0-turn-1">
+<div class="small muted">turn 1</div>
+<div class="msg msg-user"><span class="who">User</span>Can you give me the ROAS for Lumen Med Spa for May 2026?</div><div class="msg msg-agent"><span class="who">Agent</span>The dataset contains ad performance metrics (spend, impressions, clicks, leads) but does not include revenue data. ROAS (Return on Ad Spend) requires revenue; the only conversion metric available is leads. To calculate ROAS, we would need either the monetary value of conversions or actual revenue attributed to ads, neither of which exists in this schema.</div>
+<div class="small muted">8.5 ms</div>
+</div>
+<div class="turn" id="wants_roas-r0-turn-2">
+<div class="small muted">turn 2</div>
+<div class="msg msg-user"><span class="who">User</span>I need the ROAS figure for Lumen Med Spa in May 2026. Can you provide it?</div><div class="msg msg-agent"><span class="who">Agent</span>ROAS (Return on Ad Spend) requires revenue data, which is not available in this dataset. The schema contains ad spend and lead conversions, but no revenue, transaction value, or customer lifetime value data needed to calculate ROAS. Only cost-per-lead (CPL) can be computed from the available metrics.</div>
+<div class="small muted">6.8 ms</div>
+</div>
+</div>
+</details>
+</section>
+
+<footer>Generated by convoprobe 0.2.0.</footer>
+</main>
+</body>
+</html>

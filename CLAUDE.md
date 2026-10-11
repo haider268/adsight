@@ -13,7 +13,8 @@ uv run adsight bench refs     # check expected answers against reference SQL (--
 uv run adsight bench generate # write benchmark/generated/adsight-demo/
 uv run adsight bench review benchmark/generated/adsight-demo   # pending root causes
 uv run adsight bench run --questions-dir benchmark/generated/adsight-demo --arch b0 --model groq:openai/gpt-oss-120b
-uv run adsight bench resume --plan benchmark/plans/haiku-pilot-v3.yaml   # one tick; status lists runs
+uv run adsight bench status   # runs with done / retry / error counts and cost
+uv run adsight bench resume --plan benchmark/plans/haiku-pilot-v3.yaml   # one tick of a plan
 uv run adsight bench export --plan <yaml> --out benchmark/results/<plan>/
 uv run adsight bench table --results benchmark/results/<plan> --out docs/results
 uv run adsight bench judge-check --model anthropic:claude-haiku-4-5 --batch   # judge vs labels
@@ -137,9 +138,8 @@ questions, label 20-30 root-cause answers and run `bench judge-check` before tru
 ## Chat and convoprobe
 
 - `uv run adsight chat --model groq:openai/gpt-oss-120b`: chat; past turns go in the user message.
-- `uv sync --extra probe` installs convoprobe (optional, pinned). Then `uv run convoprobe run
-  benchmark/convoprobe/marketers.yaml --adapter adsight.probe_adapter:agent --html --out
-  results/convoprobe` (model from `ADSIGHT_CHAT_MODEL`; see convoprobe's README for keys).
+- `uv sync --extra probe`; `uv run convoprobe run benchmark/convoprobe/marketers.yaml --adapter
+  adsight.probe_adapter:agent --html --out results/convoprobe` (see convoprobe's README for keys).
 
 ## Rules
 

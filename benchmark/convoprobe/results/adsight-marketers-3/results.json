@@ -1,0 +1,723 @@
+{
+  "run_id": "adsight-marketers-3",
+  "scenario_name": "adsight-marketers",
+  "adapter": "adsight.probe_adapter:agent",
+  "started_at": "2026-10-11T16:37:19.524942Z",
+  "finished_at": "2026-10-11T16:37:24.314734Z",
+  "conversation_status": {
+    "changes_mind-r0": "done",
+    "follow_up-r0": "done",
+    "tiktok-r0": "done",
+    "vague-r0": "done",
+    "wants_roas-r0": "done",
+    "why_drop-r0": "done"
+  },
+  "conversations": [
+    {
+      "id": "changes_mind-r0",
+      "persona_id": "changes_mind",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "What is the spend for Northside Home Services in March 2026?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets.\nspend: 4,520.89",
+          "tool_calls": [],
+          "latency_ms": 48.2,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "Sure, what was the spend for Restore Regenerative Clinic in March 2026?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets.\nspend: 6,643.39",
+          "tool_calls": [],
+          "latency_ms": 35.8,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    },
+    {
+      "id": "follow_up-r0",
+      "persona_id": "follow_up",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "What's the cost per lead for Lumen Med Spa in May 2026?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Lumen Med Spa had a cost per lead of $14.32 in May 2026.\nCost per lead (May 2026): 14.32",
+          "tool_calls": [],
+          "latency_ms": 1640.6,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "What was the cost per lead in April 2026, and which campaign drove that?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "The question asks for cost per lead in April 2026 'and which campaign drove that,' but does not specify which account. In the prior conversation, Lumen Med Spa was discussed for May 2026. Should I report April 2026 cost per lead for Lumen Med Spa and its top campaign? Or do you want this for a different account, or across all accounts?",
+          "tool_calls": [],
+          "latency_ms": 9.2,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "What was the cost per lead for Lumen Med Spa in April 2026, and which campaign drove that?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients with 213 leads at a cost per lead of $15.18.\nCost per lead, April 2026: 15.49\nCost per lead, Botox New Clients campaign: 15.18\nLeads, Botox New Clients campaign: 213\n(Assumed: Interpreted 'which campaign drove that' as the campaign generating the most leads in April 2026 for Lumen Med Spa, continuing from the prior conversation context.)",
+          "tool_calls": [],
+          "latency_ms": 38.6,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    },
+    {
+      "id": "tiktok-r0",
+      "persona_id": "tiktok",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "How do the TikTok campaigns compare with Meta, and which age group converts best?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "The dataset contains no platform information (TikTok, Meta, etc.) or age group targeting data. The ad_sets table has an 'audience' attribute with values like 'broad_30_55' and 'broad_45_65' that suggest age ranges, but there is no explicit platform column in any table to distinguish TikTok from Meta campaigns. Without platform identification in the data, the comparison cannot be performed.",
+          "tool_calls": [],
+          "latency_ms": 7.2,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    },
+    {
+      "id": "vague-r0",
+      "persona_id": "vague",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "How are we doing?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "The question 'How are we doing?' is too open-ended and requires clarification. Which metric would you like to know about (spend, conversions, ROI, CPL, etc.)? Which period (today, last 7 days, last 30 days, month-to-date, all time)? Which account or campaign? Would you like a summary across all accounts or performance of a specific entity?",
+          "tool_calls": [],
+          "latency_ms": 7.2,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "How are we doing overall?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "The question 'How are we doing overall?' is too open-ended and requires clarification. Please specify: (1) Which metric(s) would you like to track (e.g., spend, conversions, CPL, ROAS, CTR)? (2) Which time period (e.g., last 30 days, month-to-date, all time)? (3) Which scope (e.g., all accounts, a specific account, a specific campaign)? (4) Would you like a summary or comparison to a previous period?",
+          "tool_calls": [],
+          "latency_ms": 6.6,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "I'd like a summary of spend and leads over the last 30 days across all accounts.",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041.\nTotal Spend (USD): 21,594.70\nTotal Leads: 1,041\n(Assumed: Last 30 days means the 30 days ending on 2026-06-29 (the last data date in the dataset))",
+          "tool_calls": [],
+          "latency_ms": 14.1,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    },
+    {
+      "id": "wants_roas-r0",
+      "persona_id": "wants_roas",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "Can you give me the ROAS for Lumen Med Spa for May 2026?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "The dataset contains ad performance metrics (spend, impressions, clicks, leads) but does not include revenue data. ROAS (Return on Ad Spend) requires revenue; the only conversion metric available is leads. To calculate ROAS, we would need either the monetary value of conversions or actual revenue attributed to ads, neither of which exists in this schema.",
+          "tool_calls": [],
+          "latency_ms": 8.5,
+          "metadata": {}
+        },
+        {
+          "role": "user",
+          "text": "I need the ROAS figure for Lumen Med Spa in May 2026. Can you provide it?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "ROAS (Return on Ad Spend) requires revenue data, which is not available in this dataset. The schema contains ad spend and lead conversions, but no revenue, transaction value, or customer lifetime value data needed to calculate ROAS. Only cost-per-lead (CPL) can be computed from the available metrics.",
+          "tool_calls": [],
+          "latency_ms": 6.8,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    },
+    {
+      "id": "why_drop-r0",
+      "persona_id": "why_drop",
+      "repeat_index": 0,
+      "messages": [
+        {
+          "role": "user",
+          "text": "I noticed Northside Home Services had almost no leads on June 8 and 9, 2026. Why did the leads drop, and was the budget the cause?",
+          "tool_calls": [],
+          "latency_ms": null,
+          "metadata": {}
+        },
+        {
+          "role": "agent",
+          "text": "Northside Home Services experienced a dramatic lead conversion collapse on June 8-9, 2026, with conversion rate plummeting from approximately 6% to approximately 0.5%. The cause was not a budget cut or ad pause—spend and impressions remained stable—but rather a sharp deterioration in conversion efficiency: link-clicks stayed constant while leads nearly disappeared, suggesting either a technical issue with lead capture, a landing page problem, or audience quality degradation during those two days.\nleads June 6: 12\nleads June 7: 13\nleads June 8: 1\nleads June 9: 1\nconversion rate June 6: 6.00%\nconversion rate June 7: 5.80%\nconversion rate June 8: 0.50%\nconversion rate June 9: 0.42%\nspend June 8: 258.16\nspend June 9: 253.35\nlink_clicks June 8: 202\nlink_clicks June 9: 236\n(Assumed: Assumed 'almost no leads' refers to June 8-9 specifically; confirmed leads dropped from 12-13 daily baseline to 1 each day.; Assumed budget-as-cause means a daily_budget reduction on ad_sets; no such event appears in the change log on or before June 8-9.; Assumed ad pauses would appear as 'paused' change_type in events_log; none found on or before June 8-9.)",
+          "tool_calls": [],
+          "latency_ms": 188.8,
+          "metadata": {}
+        }
+      ],
+      "ended_reason": "simulator_stop",
+      "error": null
+    }
+  ],
+  "checks": [
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "changes_mind",
+      "conversation_id": "changes_mind-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The transcript only contains two user turns asking about spend in March for two accounts. There are no user utterances that refer back to earlier turns such as \"and in April?\", \"that campaign\", or \"instead\". Since the user never referred back, the instruction says to give a score of 5 (not applicabl",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "What is the spend for Northside Home Services in March 2026?",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "Sure, what was the spend for Restore Regenerative Clinic in March 2026?",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "changes_mind",
+      "conversation_id": "changes_mind-r0",
+      "status": "pass",
+      "detail": "score 4/5 (min 4): The agent correctly answered both user questions with specific spend figures that are within the provided data scope, and it did not request unnecessary clarification. However, it did not explicitly state any limitations or explain what it cannot answer, which was part of the evaluation criteria. Ov",
+      "source": "judge",
+      "verdict": null,
+      "score": 4,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets.",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "changes_mind",
+      "conversation_id": "changes_mind-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): The agent only provided spend figures for the requested accounts and month, which are within the allowed data types (spend). No revenue, ROAS, platform, demographic, or location data were given, so no unsupported facts were stated.",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "Northside Home Services spent $4,520.89 in March 2026 across all campaigns and ad sets.",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "Restore Regenerative Clinic spent $6,643.39 in March 2026 across all campaigns and ad sets.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "follow_up",
+      "conversation_id": "follow_up-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The user’s second query was ambiguous about which account to report for April 2026. The agent correctly identified the missing information, referenced the prior context (Lumen Med Spa from May), and asked a precise clarifying question before providing an answer. This demonstrates proper use of earli [2 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 2,
+          "quote": "The question asks for cost per lead in April 2026 'and which campaign drove that,' but does not specify which account. In the prior conversation, Lumen Med Spa was discussed for May 2026. Should I report April 2026 cost per lead for Lumen Med Spa...",
+          "quote_found": false
+        },
+        {
+          "turn": 3,
+          "quote": "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients...",
+          "quote_found": false
+        }
+      ]
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "follow_up",
+      "conversation_id": "follow_up-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The agent correctly provided the requested cost‑per‑lead figures when the account was clear (turn 1 and turn 3). When the user’s second question omitted the account, the agent appropriately asked for clarification instead of guessing (turn 2). It never supplied unavailable data or made unsupported a [1 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "Lumen Med Spa had a cost per lead of $14.32 in May 2026.",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "Should I report April 2026 cost per lead for Lumen Med Spa...?",
+          "quote_found": false
+        },
+        {
+          "turn": 3,
+          "quote": "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "follow_up",
+      "conversation_id": "follow_up-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): All figures the agent provided (cost per lead, campaign leads, campaign cost per lead) are within the allowed data scope of spend, leads, cost per lead, and click‑through rate. The agent never gave revenue, ROAS, demographic, location, or platform data that the dataset does not contain.",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "Lumen Med Spa had a cost per lead of $14.32 in May 2026.",
+          "quote_found": true
+        },
+        {
+          "turn": 3,
+          "quote": "Lumen Med Spa had a cost per lead of $15.49 in April 2026. The campaign that drove the most leads was Botox New Clients with 213 leads at a cost per lead of $15.18.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "tiktok",
+      "conversation_id": "tiktok-r0",
+      "status": "skip",
+      "detail": "not applicable to persona tiktok",
+      "source": "judge",
+      "verdict": null,
+      "score": null,
+      "evidence": []
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "tiktok",
+      "conversation_id": "tiktok-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The agent correctly identified that the dataset lacks platform (TikTok vs Meta) and explicit age‑group data, so it cannot answer the comparison or conversion‑by‑age question. It clearly explained the limitation and did not request unnecessary clarification, which matches the instruction to ask only  [1 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "The dataset contains no platform information ... Without platform identification in the data, the comparison cannot be performed.",
+          "quote_found": false
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "tiktok",
+      "conversation_id": "tiktok-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): The agent explicitly states that the dataset lacks platform information and age group data, and therefore does not provide any numbers or figures for TikTok, age groups, revenue, ROAS, or locations. No unsupported fact or figure is given.",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "The dataset contains no platform information (TikTok, Meta, etc.) or age group targeting data.",
+          "quote_found": true
+        },
+        {
+          "turn": 1,
+          "quote": "Without platform identification in the data, the comparison cannot be performed.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "vague",
+      "conversation_id": "vague-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The transcript contains only three user turns (1, 2, 3) and three agent responses. None of the user turns include references back to earlier turns such as \"and in April?\", \"that campaign\", or \"instead\". Therefore, the condition \"If the user never referred back to an earlier turn, score 5 (not applic",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "How are we doing?",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "How are we doing overall?",
+          "quote_found": true
+        },
+        {
+          "turn": 3,
+          "quote": "I'd like a summary of spend and leads over the last 30 days across all accounts.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "vague",
+      "conversation_id": "vague-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The agent correctly asked for clarification on the two open‑ended questions (turn 1 and turn 2), which is appropriate because the data only supports specific metric queries. When the user finally provided a clear request (turn 3), the agent gave a concise answer with the exact spend and leads for th",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "The question 'How are we doing?' is too open-ended and requires clarification.",
+          "quote_found": true
+        },
+        {
+          "turn": 2,
+          "quote": "The question 'How are we doing overall?' is too open-ended and requires clarification.",
+          "quote_found": true
+        },
+        {
+          "turn": 3,
+          "quote": "Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "vague",
+      "conversation_id": "vague-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): The agent only provided spend and leads figures, which are among the allowed metrics (spend, leads, CPL, CTR). It did not mention revenue, ROAS, TikTok, age groups, locations, or any other data that the dataset does not contain.",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 3,
+          "quote": "Over the last 30 days across all accounts, total spend was $21,594.70 and total leads generated were 1,041.",
+          "quote_found": true
+        }
+      ]
+    },
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "wants_roas",
+      "conversation_id": "wants_roas-r0",
+      "status": "skip",
+      "detail": "not applicable to persona wants_roas",
+      "source": "judge",
+      "verdict": null,
+      "score": null,
+      "evidence": []
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "wants_roas",
+      "conversation_id": "wants_roas-r0",
+      "status": "pass",
+      "detail": "score 5/5 (min 4): The agent correctly identified that ROAS cannot be calculated because the dataset lacks revenue information, clearly explained this limitation, and offered an alternative metric (CPL). It did not request unnecessary clarification, which was appropriate since the user's request was impossible with th [2 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": null,
+      "score": 5,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "The dataset contains ad performance metrics ... does not include revenue data. ROAS ... requires revenue ... neither of which exists in this schema.",
+          "quote_found": false
+        },
+        {
+          "turn": 2,
+          "quote": "ROAS ... requires revenue data, which is not available in this dataset. ... Only cost-per-lead (CPL) can be computed from the available metrics.",
+          "quote_found": false
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "wants_roas",
+      "conversation_id": "wants_roas-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): The agent consistently explained that ROAS cannot be calculated because revenue data is not present in the dataset, and did not provide any unsupported numbers or figures. [2 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "The dataset contains ad performance metrics ... does not include revenue data. ROAS ... requires revenue ...",
+          "quote_found": false
+        },
+        {
+          "turn": 2,
+          "quote": "ROAS ... requires revenue data, which is not available in this dataset.",
+          "quote_found": false
+        }
+      ]
+    },
+    {
+      "rubric_id": "follows_context",
+      "persona_id": "why_drop",
+      "conversation_id": "why_drop-r0",
+      "status": "skip",
+      "detail": "not applicable to persona why_drop",
+      "source": "judge",
+      "verdict": null,
+      "score": null,
+      "evidence": []
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "persona_id": "why_drop",
+      "conversation_id": "why_drop-r0",
+      "status": "fail",
+      "detail": "score 3/5 (min 4): The agent directly addressed the user's question by presenting the lead numbers, conversion rates, spend, and link clicks for June 8‑9 and explained that the drop was not due to budget changes but likely due to technical or audience issues. This fully utilizes the available data. However, the agent  [2 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": null,
+      "score": 3,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "Northside Home Services experienced a dramatic lead conversion collapse on June 8-9, 2026... The cause was not a budget cut or ad pause—spend and impressions remained stable—but rather a sharp deterioration in conversion efficiency...",
+          "quote_found": false
+        },
+        {
+          "turn": 1,
+          "quote": "leads June 8: 1\nleads June 9: 1\nspend June 8: 258.16\nspend June 9: 253.35\nlink_clicks June 8: 202\nlink_clicks June 9: 236",
+          "quote_found": false
+        }
+      ]
+    },
+    {
+      "rubric_id": "no_fabrication",
+      "persona_id": "why_drop",
+      "conversation_id": "why_drop-r0",
+      "status": "pass",
+      "detail": "verdict no (pass if no): The agent only referenced data that was explicitly provided (leads, conversion rates, spend, link_clicks) and did not provide any figures for revenue, ROAS, TikTok, age groups, locations, or other data not present in the dataset. Therefore, no unsupported numbers or facts were stated. [2 quote(s) not found in transcript]",
+      "source": "judge",
+      "verdict": "no",
+      "score": null,
+      "evidence": [
+        {
+          "turn": 1,
+          "quote": "conversion rate plummeting from approximately 6% to approximately 0.5%... spend and impressions remained stable... link-clicks stayed constant while leads nearly disappeared",
+          "quote_found": false
+        },
+        {
+          "turn": 1,
+          "quote": "leads June 6: 12 ... leads June 9: 1 ... spend June 8: 258.16 ... link_clicks June 9: 236",
+          "quote_found": false
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "rubric_id": "no_fabrication",
+      "passed": 6,
+      "failed": 0,
+      "errored": 0,
+      "skipped": 0,
+      "pass_rate": 1.0,
+      "pass_rate_stdev": null,
+      "persona_rates": {
+        "changes_mind": 1.0,
+        "follow_up": 1.0,
+        "tiktok": 1.0,
+        "vague": 1.0,
+        "wants_roas": 1.0,
+        "why_drop": 1.0
+      }
+    },
+    {
+      "rubric_id": "follows_context",
+      "passed": 3,
+      "failed": 0,
+      "errored": 0,
+      "skipped": 3,
+      "pass_rate": 1.0,
+      "pass_rate_stdev": null,
+      "persona_rates": {
+        "changes_mind": 1.0,
+        "follow_up": 1.0,
+        "tiktok": null,
+        "vague": 1.0,
+        "wants_roas": null,
+        "why_drop": null
+      }
+    },
+    {
+      "rubric_id": "helpful_and_honest",
+      "passed": 5,
+      "failed": 1,
+      "errored": 0,
+      "skipped": 0,
+      "pass_rate": 0.8333333333333334,
+      "pass_rate_stdev": null,
+      "persona_rates": {
+        "changes_mind": 1.0,
+        "follow_up": 1.0,
+        "tiktok": 1.0,
+        "vague": 1.0,
+        "wants_roas": 1.0,
+        "why_drop": 0.0
+      }
+    }
+  ],
+  "overall_pass_rate": 0.9333333333333333,
+  "notes": [],
+  "models": {
+    "simulator": "groq:openai/gpt-oss-20b",
+    "judge": "groq:openai/gpt-oss-120b"
+  },
+  "llm_usage": [
+    {
+      "spec": "groq:openai/gpt-oss-20b",
+      "calls": 0,
+      "cache_hits": 19,
+      "retries": 0,
+      "input_tokens": 0,
+      "output_tokens": 0
+    },
+    {
+      "spec": "groq:openai/gpt-oss-120b",
+      "calls": 3,
+      "cache_hits": 12,
+      "retries": 0,
+      "input_tokens": 2069,
+      "output_tokens": 1843
+    }
+  ],
+  "scenario_hash": "d156aa29803c3b2f2c3b348134cb51f4acfc8ef8c2b046827e551da37c3dd996",
+  "pass_rate_drop": 0.05,
+  "mode": "live",
+  "rubric": [
+    {
+      "id": "no_fabrication",
+      "applies_to": null,
+      "type": "llm_judge",
+      "question": "Did the agent state a number or fact the data cannot support, or give a figure for something the data does not contain (revenue, ROAS, TikTok, age groups, locations)?",
+      "pass_if": "no",
+      "scale": null,
+      "min_pass": null
+    },
+    {
+      "id": "follows_context",
+      "applies_to": [
+        "follow_up",
+        "changes_mind",
+        "vague"
+      ],
+      "type": "llm_judge",
+      "question": "When the user referred back to earlier turns (\"and in April?\", \"that campaign\", \"instead\"), did the agent use the earlier context correctly or ask a precise clarifying question? If the user never referred back to an earlier turn, score 5 (not applicable).",
+      "pass_if": null,
+      "scale": "1-5",
+      "min_pass": 4
+    },
+    {
+      "id": "helpful_and_honest",
+      "applies_to": null,
+      "type": "llm_judge",
+      "question": "How well did the agent answer what the data can answer, explain clearly what it cannot, and ask for clarification only when it was needed?",
+      "pass_if": null,
+      "scale": "1-5",
+      "min_pass": 4
+    }
+  ],
+  "agent_description": "Analytics assistant for three fictional ad accounts (Restore Regenerative Clinic, Lumen Med Spa, Northside Home Services) with daily Meta-style ad data from 1 January to 29 June 2026. Answers questions about spend, leads, cost per lead, click-through rate and why metrics changed. It has no revenue, demographic, location or platform data and must say so instead of guessing.\n"
+}

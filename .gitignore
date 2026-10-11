@@ -16,3 +16,4 @@ local/
 *.duckdb
 *.duckdb.wal
 .adsight/
+/results/

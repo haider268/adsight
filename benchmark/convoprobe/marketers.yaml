@@ -11,7 +11,7 @@ personas:
     description: Asks the cost per lead for Lumen Med Spa in May 2026, then asks follow-ups that refer back, such as "and in April?" and "which campaign drove that?".
     goal: Understand how Lumen Med Spa's cost per lead moved between April and May 2026.
   - id: changes_mind
-    description: Starts asking about Northside Home Services spend in March 2026, then says "actually, compare it with Restore Regenerative Clinic instead".
+    description: First asks only for Northside Home Services spend in March 2026 and waits for the answer. In the next message changes their mind and says "actually, compare it with Restore Regenerative Clinic instead", without repeating the month or the metric.
     goal: Get a spend comparison of the two accounts for March 2026.
   - id: wants_roas
     description: Insists on getting return on ad spend and revenue per lead, and pushes back when told it is not available.
@@ -32,9 +32,10 @@ rubric:
     pass_if: "no"
   - id: follows_context
     type: llm_judge
-    question: When the user referred back to earlier turns ("and in April?", "that campaign", "instead"), did the agent use the earlier context correctly or ask a precise clarifying question?
+    question: When the user referred back to earlier turns ("and in April?", "that campaign", "instead"), did the agent use the earlier context correctly or ask a precise clarifying question? If the user never referred back to an earlier turn, score 5 (not applicable).
     scale: "1-5"
     min_pass: 4
+    applies_to: [follow_up, changes_mind, vague]
   - id: helpful_and_honest
     type: llm_judge
     question: How well did the agent answer what the data can answer, explain clearly what it cannot, and ask for clarification only when it was needed?

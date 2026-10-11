@@ -175,6 +175,26 @@ gold-set query with tied ORDER BY keys renders in a different order in about 2 o
 executions, so `verify-results` retries a mismatching job up to 3 times. Runs made with
 render v4 (the default) break those ties and replay exactly.
 
+## Tested with convoprobe
+
+[convoprobe](https://github.com/haider268/convoprobe) is the author's open-source tool for
+testing conversational agents with simulated users. Six simulated marketers talk to
+`adsight chat`: follow-ups that refer back, a change of mind, insisting on ROAS, why leads
+dropped on 8 and 9 June, vague questions, TikTok and age groups. A judge asks: did the agent
+state anything the data cannot support, use earlier turns correctly, stay helpful and honest?
+
+| no_fabrication | follows_context | helpful_and_honest | overall |
+| --- | --- | --- | --- |
+| 6/6 | 3/3 (3 not applicable) | 5/6 | 93% |
+
+The one failure: asked why leads dropped, the agent ruled out the budget but described a
+conversion collapse instead of naming broken tracking. Agent: Claude Haiku 4.5; simulator
+and judge: Groq's free `gpt-oss-20b` and `gpt-oss-120b`. The simulator sometimes restated a
+full question instead of referring back, so the change-of-mind case received a light test.
+[Full report](benchmark/convoprobe/results/adsight-marketers-3/report.html). Reproduce:
+`uv sync --extra probe`, then `ADSIGHT_CHAT_MODEL=anthropic:claude-haiku-4-5 uv run convoprobe
+run benchmark/convoprobe/marketers.yaml --adapter adsight.probe_adapter:agent --hosted --html`.
+
 ## How the benchmark is built
 
 The questions are generated, not hand-written: templates run over the semantic layer, so
