@@ -686,6 +686,51 @@ def bench_status(
     console.print(table)
 
 
+@app.command()
+def chat(
+    model: Annotated[str, typer.Option("--model", help="<provider>:<model>, as for bench run.")],
+    arch: Annotated[str, typer.Option("--arch", help="Architecture: b0..b4.")] = "b4",
+    semantic: Annotated[Path, typer.Option("--semantic", help="Semantic model YAML.")] = Path(
+        "semantic/demo.yaml"
+    ),
+    db: DbOption = None,
+) -> None:
+    """Ask questions in a conversation; follow-ups may refer to earlier turns. Type "exit"."""
+    import asyncio
+
+    from adsight.architectures import ARCHITECTURES
+    from adsight.chat import ChatSession, History
+
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    if arch not in ARCHITECTURES:
+        err_console.print(f"unknown architecture {arch!r}; choose from {sorted(ARCHITECTURES)}")
+        raise typer.Exit(2)
+    path = _db_path(db)
+    if not path.is_file():
+        err_console.print(f"database not found at {path}")
+        raise typer.Exit(2)
+
+    async def loop(session: ChatSession) -> None:
+        history: History = []
+        while True:
+            try:
+                text = (await asyncio.to_thread(input, "you> ")).strip()
+            except EOFError:
+                return
+            if text.casefold() in ("exit", "quit"):
+                return
+            if not text:
+                continue
+            history.append(("user", text))
+            reply = await session.reply(history)
+            history.append(("agent", reply))
+            console.print(f"adsight> {reply}", markup=False, highlight=False)
+
+    with ChatSession(model, arch, semantic, path, settings=settings) as session:
+        asyncio.run(loop(session))
+
+
 @bench_app.command("table")
 def bench_table(
     results: Annotated[
