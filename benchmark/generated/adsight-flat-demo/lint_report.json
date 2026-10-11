@@ -97,7 +97,7 @@
           "parent_level": "campaign",
           "period": "last30"
         },
-        "question": "Compare cost per conversion across the ad sets in the campaign \"Roofing Inspection\" in the last 30 days.",
+        "question": "Compare cost per conversion across the ad sets in the campaign \"Roofing Inspection\" in the last 30 days (30 May to 28 June 2026).",
         "reason": "Storm Zip Codes: 17 conversions < 20",
         "template": "C_LEVEL"
       },
@@ -160,7 +160,7 @@
           "start": "2026-02-16",
           "weeks": "4"
         },
-        "question": "Look at weekly clicks for the campaign \"Laser Hair Removal\" from 16 February 2026 to 15 March 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly clicks for the campaign \"Laser Hair Removal\" from 16 February 2026 to 15 March 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change +3.06% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       },
@@ -172,7 +172,7 @@
           "start": "2026-05-04",
           "weeks": "8"
         },
-        "question": "Look at weekly impressions for the ad set \"Retargeting Site\" from 4 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly impressions for the ad set \"Retargeting Site\" from 4 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change +4.42% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       },
@@ -184,7 +184,7 @@
           "start": "2026-03-16",
           "weeks": "8"
         },
-        "question": "Look at weekly clicks for the campaign \"Membership Promo\" from 16 March 2026 to 10 May 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly clicks for the campaign \"Membership Promo\" from 16 March 2026 to 10 May 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change -3.32% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       }
@@ -235,7 +235,7 @@
           "metric": "conversions",
           "period": "2026-Q1"
         },
-        "question": "What was the total number of conversions for the ad set \"Local Radius 15mi\" in the first quarter of 2026?",
+        "question": "What was the total number of conversions for the ad set \"Local Radius 15mi\" in the first quarter of 2026 (January to March 2026)?",
         "reason": "all: data on 10 of 13 dates",
         "template": "L_TOTAL"
       },

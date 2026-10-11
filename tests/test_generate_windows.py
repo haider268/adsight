@@ -9,17 +9,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEMO_SET = REPO_ROOT / "benchmark" / "generated" / "adsight-demo"
 LOGGED_ANGLES = ("RC_SCOPE", "RC_PARENT", "RC_DECOY", "RC_SPEND")
 TWO_WEEKS = re.compile(
-    r"in the two weeks from (\d{1,2} \w+ 2026) \(([^)]+)\), compared with the two weeks before\?$"
+    r"in the two weeks from (\d{1,2} \w+ 2026) \(([^)]+)\), compared with the two weeks "
+    r"before\?( If not, what was\?)?$"
 )
 ONE_WEEK = re.compile(
-    r"in the week from (\d{1,2} \w+ 2026) \(([^)]+)\), compared with the two weeks before\?$"
+    r"in the week from (\d{1,2} \w+ 2026) \(([^)]+)\), compared with the two weeks "
+    r"before\?( If not, what was\?)?$"
 )
 
-# The human-reviewed questions, as recorded in M3. Their text must never change.
+# The human-reviewed questions, as recorded in M3. Their text must never change, except
+# RC11 and RC12, which gained "If not, what was?" and so went back to pending review.
 REVIEWED = {
     "RC10": "approved",
-    "RC11": "approved",
-    "RC12": "approved",
+    "RC11": "pending",
+    "RC12": "pending",
     "RC13": "approved",
     "RC16": "approved",
     "RC17": "rejected",

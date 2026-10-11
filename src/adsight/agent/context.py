@@ -153,6 +153,9 @@ def schema_card(model: SemanticModel, ctx: DatasetContext, con: duckdb.DuckDBPyC
         elif model.change_log is not None and table == model.change_log.table:
             role = " [change log]"
         items = ", ".join(f"{c} {types.get(c, '?')}: {what}" for c, what in columns.items())
+        others = [f"{c} {t}" for c, t in types.items() if c not in columns]
+        if others:  # unmapped columns, so the agent can still use them (e.g. budgets)
+            items += "; other columns: " + ", ".join(others)
         if model.change_log is not None and table == model.change_log.table:
             items += _change_log_detail(model, con)
         lines.append(f"{table}{role}: {items}")

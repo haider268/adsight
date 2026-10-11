@@ -76,13 +76,14 @@ def test_demo_periods(demo_ctx: DatasetContext) -> None:
     assert [p.key for p in months] == ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"]
     assert months[2].text == "March 2026"
     assert [(q.key, q.text) for q in full_quarters(demo_ctx)] == [
-        ("2026-Q1", "the first quarter of 2026")
+        ("2026-Q1", "the first quarter of 2026 (January to March 2026)")
     ]
     periods = {p.key: p for p in all_periods(demo_ctx)}
     assert (periods["last30"].start, periods["last30"].end) == (
         date(2026, 5, 31),
         date(2026, 6, 29),
     )
+    assert periods["last30"].text == "the last 30 days (31 May to 29 June 2026)"
     assert periods["whole"].text == "the whole period"
     weeks = [p for p in periods.values() if p.kind == "week"]
     assert weeks[0].start == date(2026, 1, 5) and weeks[-1].end == date(2026, 6, 28)

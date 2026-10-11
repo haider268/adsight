@@ -40,6 +40,18 @@ def day_text(d: date) -> str:
     return f"{d.day} {MONTH_NAMES[d.month - 1]} {d.year}"
 
 
+def span_text(start: date, end: date) -> str:
+    """'16 to 29 March 2026', '20 April to 3 May 2026', '28 December 2025 to 10 January
+    2026': the end always carries month and year."""
+    if (start.year, start.month) == (end.year, end.month):
+        first = str(start.day)
+    elif start.year == end.year:
+        first = f"{start.day} {MONTH_NAMES[start.month - 1]}"
+    else:
+        first = day_text(start)
+    return f"{first} to {day_text(end)}"
+
+
 def month_text(year: int, month: int) -> str:
     return f"{MONTH_NAMES[month - 1]} {year}"
 
@@ -103,15 +115,16 @@ def full_quarters(ctx: DatasetContext) -> list[Period]:
             if all(k in months for k in keys):
                 start = _month_bounds(year, 3 * q + 1)[0]
                 end = _month_bounds(year, 3 * q + 3)[1]
-                text = f"the {QUARTER_ORDINALS[q]} quarter of {year}"
+                first, last = MONTH_NAMES[3 * q], MONTH_NAMES[3 * q + 2]
+                text = f"the {QUARTER_ORDINALS[q]} quarter of {year} ({first} to {last} {year})"
                 quarters.append(Period(f"{year}-Q{q + 1}", text, start, end, "quarter"))
     return quarters
 
 
 def last30(ctx: DatasetContext) -> Period:
-    return Period(
-        "last30", "the last 30 days", ctx.today - timedelta(days=30), ctx.data_end, "last30"
-    )
+    start = ctx.today - timedelta(days=30)
+    text = f"the last 30 days ({span_text(start, ctx.data_end)})"
+    return Period("last30", text, start, ctx.data_end, "last30")
 
 
 def whole(ctx: DatasetContext) -> Period:

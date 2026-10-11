@@ -59,7 +59,7 @@
           "metric": "conversions",
           "period": "2026-Q1"
         },
-        "question": "What was the total number of leads for the ad \"Video Viewers | Carousel\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026?",
+        "question": "What was the total number of leads for the ad \"Video Viewers | Carousel\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026 (January to March 2026)?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       },
@@ -70,7 +70,7 @@
           "metric": "impressions",
           "period": "2026-Q1"
         },
-        "question": "What was the total number of impressions for the ad \"Video Viewers | Image\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026?",
+        "question": "What was the total number of impressions for the ad \"Video Viewers | Image\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the first quarter of 2026 (January to March 2026)?",
         "reason": "result contains NULL values",
         "template": "L_TOTAL"
       }
@@ -83,7 +83,7 @@
           "metric": "conversions",
           "period": "last30"
         },
-        "question": "What was the total number of leads for the ad \"Video Viewers | Video\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the last 30 days?",
+        "question": "What was the total number of leads for the ad \"Video Viewers | Video\" in the ad set \"Video Viewers\" in the campaign \"Roofing Inspection\" in the last 30 days (31 May to 29 June 2026)?",
         "reason": "all: 4 conversions < 20",
         "template": "L_TOTAL"
       },
@@ -120,7 +120,7 @@
           "scope_entity": "A2",
           "scope_level": "account"
         },
-        "question": "Which campaign in the account \"Lumen Med Spa\" had the lowest cost per thousand impressions in the last 30 days?",
+        "question": "Which campaign in the account \"Lumen Med Spa\" had the lowest cost per thousand impressions in the last 30 days (31 May to 29 June 2026)?",
         "reason": "top 11.9485 vs second 11.9985: margin 0.42% < 5%",
         "template": "A_RANK"
       },
@@ -146,7 +146,7 @@
           "scope_entity": "S01",
           "scope_level": "ad_set"
         },
-        "question": "Which ad in the ad set \"Knee 45-65 Broad\" had the highest cost per thousand impressions in the first quarter of 2026?",
+        "question": "Which ad in the ad set \"Knee 45-65 Broad\" had the highest cost per thousand impressions in the first quarter of 2026 (January to March 2026)?",
         "reason": "top 13.9999 vs second 13.9171: margin 0.59% < 5%",
         "template": "A_RANK"
       }
@@ -160,7 +160,7 @@
           "start": "2026-04-13",
           "weeks": "8"
         },
-        "question": "Look at weekly cost per thousand impressions for the ad \"New Movers | Video\" from 13 April 2026 to 7 June 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly cost per thousand impressions for the ad \"New Movers | Video\" from 13 April 2026 to 7 June 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change +7.67% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       },
@@ -172,7 +172,7 @@
           "start": "2026-05-18",
           "weeks": "6"
         },
-        "question": "Look at weekly link clicks for the ad \"Storm Zip Codes | Image\" from 18 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly link clicks for the ad \"Storm Zip Codes | Image\" from 18 May 2026 to 28 June 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change +3.12% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       },
@@ -184,7 +184,7 @@
           "start": "2026-04-06",
           "weeks": "4"
         },
-        "question": "Look at weekly click-through rate (clicks divided by impressions) for the ad \"Local Radius 15mi | Video\" from 6 April 2026 to 3 May 2026. Is it rising, falling, or roughly flat?",
+        "question": "Look at weekly click-through rate (clicks divided by impressions) for the ad \"Local Radius 15mi | Video\" from 6 April 2026 to 3 May 2026. Is it rising, falling, or roughly flat? Treat a change of less than 5% between the first and last value as roughly flat.",
         "reason": "change -8.56% is neither flat (<= 2%) nor clear (>= 9%)",
         "template": "T_WEEKLY"
       }
@@ -235,7 +235,7 @@
           "metric": "spend",
           "period": "2026-Q1"
         },
-        "question": "What was the total spend for the ad \"Local Radius 10mi | Video\" in the first quarter of 2026?",
+        "question": "What was the total spend for the ad \"Local Radius 10mi | Video\" in the first quarter of 2026 (January to March 2026)?",
         "reason": "all: data on 31 of 90 dates",
         "template": "L_TOTAL"
       },
@@ -264,7 +264,7 @@
     ]
   },
   "root_cause": {
-    "approved": 7,
+    "approved": 5,
     "by_angle": {
       "RC_CALENDAR": 3,
       "RC_DECOY": 2,
@@ -291,7 +291,7 @@
       "noise": 10,
       "tracking": 1
     },
-    "pending_review": 0,
+    "pending_review": 2,
     "rejected": 1
   },
   "shortfalls": [],

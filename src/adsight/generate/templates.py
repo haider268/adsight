@@ -17,12 +17,12 @@ import duckdb
 from adsight.benchmark.questions import Category
 from adsight.generate.context import DatasetContext
 from adsight.generate.periods import (
-    MONTH_NAMES,
     Period,
     all_periods,
     day_text,
     full_months,
     month_before_start,
+    span_text,
     week_starts,
 )
 from adsight.generate.wording import (
@@ -93,6 +93,7 @@ class Env:
     columns: list[str]  # every normalised column name in the database
     top_entity: tuple[str, str]  # top-level entity with the most spend
     labels: dict[str, dict[str, str]] = field(default_factory=dict)
+    text_values: list[str] = field(default_factory=list)  # VARCHAR attribute values, casefolded
 
     def label(self, level: str, key: str) -> str:
         return self.labels[level][key]
@@ -183,6 +184,14 @@ def build_env(model: SemanticModel, con: duckdb.DuckDBPyConnection, ctx: Dataset
             f"WHERE {col} IS NOT NULL ORDER BY 1"
         ).fetchall()
         attribute_values[attr.name] = [str(r[0]) for r in rows]
+    text_values = sorted(
+        {
+            value.casefold()
+            for attr in model.attributes
+            if _column_type(con, attr.table, attr.column) == "VARCHAR"
+            for value in attribute_values[attr.name]
+        }
+    )
 
     columns = [
         normalise(str(r[0]))
@@ -215,7 +224,17 @@ def build_env(model: SemanticModel, con: duckdb.DuckDBPyConnection, ctx: Dataset
         columns=columns,
         top_entity=(str(row[0]), str(row[1])),
         labels=labels,
+        text_values=text_values,
     )
+
+
+def _column_type(con: duckdb.DuckDBPyConnection, table: str, column: str) -> str | None:
+    row = con.execute(
+        "SELECT data_type FROM information_schema.columns "
+        "WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+        [table, column],
+    ).fetchone()
+    return None if row is None else str(row[0])
 
 
 def _notes(*periods: Period) -> str:
@@ -746,7 +765,11 @@ def c_months_build(env: Env, params: Params) -> Candidate:
 
 # --- trends ------------------------------------------------------------------
 
-_TREND_TAIL = " Is it rising, falling, or roughly flat?"
+TREND_FLAT_BAND_PCT = 5.0
+_TREND_TAIL = (
+    " Is it rising, falling, or roughly flat? Treat a change of less than "
+    f"{TREND_FLAT_BAND_PCT:g}% between the first and last value as roughly flat."
+)
 
 
 def _trend(
@@ -784,7 +807,7 @@ def _trend(
         template=template,
         category="trend",
         question=text + _TREND_TAIL,
-        scoring={"type": "trend", "unit": _unit(metric), "flat_band_pct": 5.0},
+        scoring={"type": "trend", "unit": _unit(metric), "flat_band_pct": TREND_FLAT_BAND_PCT},
         params=params,
         sql=sql,
         spec=spec,
@@ -988,9 +1011,21 @@ PROBES: tuple[Probe, ...] = (
 )
 
 
+AGE_RANGE_RE = re.compile(r"(?<![0-9a-z])\d{2}[_-]\d{2}(?![0-9a-z])")  # broad_45_65
+
+
+def probe_answerable(env: Env, probe: Probe) -> bool:
+    """Whether the data might answer a probe: one of its words appears inside a column name
+    or inside a value of a text attribute, or (demographics) a value holds an age range."""
+    texts = [*env.columns, *env.text_values]
+    if any(w in text for w in probe.words for text in texts):
+        return True
+    return probe.concept == "demographics" and any(AGE_RANGE_RE.search(v) for v in env.text_values)
+
+
 def available_probes(env: Env) -> list[Probe]:
-    """Probes none of whose words appear inside any column name."""
-    return [p for p in PROBES if not any(w in col for w in p.words for col in env.columns)]
+    """Probes the data cannot answer (see probe_answerable)."""
+    return [p for p in PROBES if not probe_answerable(env, p)]
 
 
 def ambiguous_candidate(key: str, text: str) -> Candidate:
@@ -1023,6 +1058,7 @@ NOISE_RE = (
     "variation|fluctuat|noise|random|chance|conversion rate|lead rate|"
     "leads per (link )?click|share of clicks|conversion (performance|efficiency)"
 )
+DECOY_FOLLOW_UP = "If not, what was?"
 CAL_RE = "fewer days|more days|shorter|longer|days in|month length|per day|daily spend"
 
 
@@ -1057,18 +1093,6 @@ def _capital(text: str) -> str:
 
 def _window_text(cause: "Cause") -> str:
     return "week" if cause.evidence.get("change_type") == "audience_edit" else "two weeks"
-
-
-def span_text(start: date, end: date) -> str:
-    """'16 to 29 March 2026', '20 April to 3 May 2026', '28 December 2025 to 10 January
-    2026': the end always carries month and year."""
-    if (start.year, start.month) == (end.year, end.month):
-        first = str(start.day)
-    elif start.year == end.year:
-        first = f"{start.day} {MONTH_NAMES[start.month - 1]}"
-    else:
-        first = day_text(start)
-    return f"{first} to {day_text(end)}"
 
 
 def comparison_text(cause: "Cause") -> str:
@@ -1230,7 +1254,7 @@ def root_cause_candidates(
                 question = (
                     f"Was the {decoy.describe()} on {decoy_text} on "
                     f"{day_text(decoy.day)} the reason cost per {conv} rose for {scope_text} "
-                    f"{compared}?"
+                    f"{compared}? {DECOY_FOLLOW_UP}"
                 )
                 out.append(
                     _rc_candidate(cause, "RC_DECOY", question, logged_required(cause), summary)
@@ -1263,7 +1287,8 @@ def root_cause_candidates(
                 clevel, ckey = str(ev["child_level"]), str(ev["child_key"])
                 child_text = _capital(env.entity(clevel, ckey))
                 question = (
-                    f"{child_text} got almost no {plural} on {dates}. Was the budget the problem?"
+                    f"{child_text} got almost no {plural} on {dates}. Was the budget the "
+                    f"problem? {DECOY_FOLLOW_UP}"
                 )
                 out.append(_rc_candidate(cause, "RC_TRACK_CHILD", question, [TRK_RE], summary))
             decoy = _decoy_for(env, cause, decoys, decoy_window_days)
@@ -1271,7 +1296,8 @@ def root_cause_candidates(
                 decoy_text = env.entity(decoy.level, decoy.key, decoy.label)
                 question = (
                     f"Did the {decoy.describe()} on {decoy_text} on "
-                    f"{day_text(decoy.day)} cause the drop in {plural} on {dates}?"
+                    f"{day_text(decoy.day)} cause the drop in {plural} on {dates}? "
+                    f"{DECOY_FOLLOW_UP}"
                 )
                 out.append(_rc_candidate(cause, "RC_TRACK_DECOY", question, [TRK_RE], summary))
         elif cause.kind == "fatigue":
