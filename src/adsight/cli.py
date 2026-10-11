@@ -705,6 +705,46 @@ def bench_table(
         console.print(f"wrote {path}")
 
 
+@bench_app.command("verify-results")
+def bench_verify_results(
+    results: Annotated[
+        Path, typer.Option("--results", help="Exported results folder (<job>/report.json).")
+    ],
+    data_dir: Annotated[
+        Path, typer.Option("--data-dir", help="Folder with adsight.duckdb and manifest.json.")
+    ] = Path("data"),
+    semantic: Annotated[Path, typer.Option("--semantic", help="Semantic model YAML.")] = Path(
+        "semantic/demo.yaml"
+    ),
+) -> None:
+    """Replay every published job offline from its cassette and compare with its report.
+
+    A job that does not match is replayed up to 3 times in all (render v3 runs can differ
+    by DuckDB's order of tied rows). Exit 1 on a mismatch after 3 tries. Uses a throwaway
+    runs database and never calls a provider."""
+    from adsight.verify_results import verify_results
+
+    if not (data_dir / "adsight.duckdb").is_file():
+        err_console.print(f"database not found in {data_dir}; run `adsight data` first")
+        raise typer.Exit(2)
+    try:
+        checks = verify_results(results, data_dir, semantic)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(1) from exc
+    table = Table(title=f"verify {results}")
+    for column in ("job", "published", "replayed", "tries", "result"):
+        table.add_column(
+            column, justify="right" if column in ("published", "replayed", "tries") else "left"
+        )
+    for c in checks:
+        replayed = "-" if c.replayed is None else f"{c.replayed:.1%}"
+        table.add_row(c.job, f"{c.published:.1%}", replayed, str(c.tries), c.outcome)
+    console.print(table)
+    if not all(c.match for c in checks):
+        raise typer.Exit(1)
+
+
 @bench_app.command("judge-check")
 def bench_judge_check(
     model: Annotated[str, typer.Option("--model", help="Model spec of the judge.")],

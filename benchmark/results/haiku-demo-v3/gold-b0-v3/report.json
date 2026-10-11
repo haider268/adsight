@@ -1,0 +1,1056 @@
+{
+  "accuracy": 0.8,
+  "answers": [
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG01",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG02",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG03",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG04",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG05",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "AG06",
+      "rule_passed": false,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG07",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG08",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG09",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG10",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG11",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG12",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG13",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG14",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG15",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM01",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM02",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM03",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM04",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM05",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM06",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM07",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM08",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM09",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM10",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP01",
+      "rule_passed": true,
+      "values": 6
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP02",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP03",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP04",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP05",
+      "rule_passed": true,
+      "values": 4
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP06",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "CP07",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP08",
+      "rule_passed": true,
+      "values": 6
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP09",
+      "rule_passed": true,
+      "values": 6
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP10",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP11",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP12",
+      "rule_passed": true,
+      "values": 4
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "CP13",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "CP14",
+      "rule_passed": false,
+      "values": 2
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP15",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK01",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK02",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK03",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK04",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK05",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK06",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK07",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK08",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "LK09",
+      "rule_passed": false,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK10",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK11",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK12",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK13",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK14",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK15",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC01",
+      "rule_passed": false,
+      "values": 5
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC02",
+      "rule_passed": false,
+      "values": 7
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC03",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC04",
+      "rule_passed": false,
+      "values": 8
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC05",
+      "rule_passed": false,
+      "values": 4
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC06",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC07",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": true,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC08",
+      "rule_passed": false,
+      "values": 11
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC09",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC10",
+      "rule_passed": true,
+      "values": 7
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC11",
+      "rule_passed": false,
+      "values": 9
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC12",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC13",
+      "rule_passed": false,
+      "values": 9
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC14",
+      "rule_passed": false,
+      "values": 10
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC15",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC16",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "RC17",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": true,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC18",
+      "rule_passed": false,
+      "values": 6
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": true,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC19",
+      "rule_passed": false,
+      "values": 5
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": false,
+      "kind": "clarify",
+      "passed": false,
+      "question_id": "RC20",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR01",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": false,
+      "question_id": "TR02",
+      "rule_passed": false,
+      "values": 0
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR03",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR04",
+      "rule_passed": true,
+      "values": 6
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR05",
+      "rule_passed": true,
+      "values": 6
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR06",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR07",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR08",
+      "rule_passed": true,
+      "values": 4
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR09",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR10",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR11",
+      "rule_passed": true,
+      "values": 7
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR12",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR13",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR14",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR15",
+      "rule_passed": true,
+      "values": 4
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN01",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN02",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN03",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN04",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN05",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN06",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN07",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN08",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN09",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN10",
+      "rule_passed": true,
+      "values": 0
+    }
+  ],
+  "arch": "b0",
+  "batch": true,
+  "cache_hits": 0,
+  "counts": {
+    "done": 100
+  },
+  "judge": "anthropic:claude-haiku-4-5",
+  "mean_llm_calls": 1.73,
+  "mean_tokens": 5319.7,
+  "model_spec": "anthropic:claude-haiku-4-5",
+  "passed": 80,
+  "per_category": {
+    "aggregation": {
+      "passed": 14,
+      "total": 15
+    },
+    "ambiguous": {
+      "passed": 10,
+      "total": 10
+    },
+    "comparison": {
+      "passed": 12,
+      "total": 15
+    },
+    "lookup": {
+      "passed": 14,
+      "total": 15
+    },
+    "root_cause": {
+      "judge_passed": 6,
+      "judged": 20,
+      "passed": 6,
+      "rule_passed": 1,
+      "total": 20
+    },
+    "trend": {
+      "passed": 14,
+      "total": 15
+    },
+    "unanswerable": {
+      "passed": 10,
+      "total": 10
+    }
+  },
+  "questions": 100,
+  "questions_dir": "benchmark",
+  "run_id": "gold-b0-v3",
+  "salt": "",
+  "sample": null,
+  "status": "complete",
+  "total_cost_usd": 0.343667
+}

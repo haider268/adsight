@@ -1,0 +1,256 @@
+{
+  "accuracy": 0.95,
+  "answers": [
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG01",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG03",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "aggregation",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "AG15",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM01",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM03",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "ambiguous",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "clarify",
+      "passed": true,
+      "question_id": "AM08",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP03",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP04",
+      "rule_passed": true,
+      "values": 2
+    },
+    {
+      "category": "comparison",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "CP10",
+      "rule_passed": true,
+      "values": 2
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK06",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK07",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "lookup",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "LK15",
+      "rule_passed": true,
+      "values": 1
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC06",
+      "rule_passed": true,
+      "values": 9
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": true,
+      "judge_invents": false,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "RC08",
+      "rule_passed": true,
+      "values": 9
+    },
+    {
+      "category": "root_cause",
+      "judge_identifies": false,
+      "judge_invents": true,
+      "kind": "answer",
+      "passed": false,
+      "question_id": "RC14",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR03",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR07",
+      "rule_passed": true,
+      "values": 3
+    },
+    {
+      "category": "trend",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "answer",
+      "passed": true,
+      "question_id": "TR10",
+      "rule_passed": true,
+      "values": 5
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN06",
+      "rule_passed": true,
+      "values": 0
+    },
+    {
+      "category": "unanswerable",
+      "judge_identifies": null,
+      "judge_invents": null,
+      "kind": "cannot_answer",
+      "passed": true,
+      "question_id": "UN10",
+      "rule_passed": true,
+      "values": 0
+    }
+  ],
+  "arch": "b4",
+  "batch": true,
+  "cache_hits": 0,
+  "counts": {
+    "done": 20
+  },
+  "judge": "anthropic:claude-haiku-4-5",
+  "mean_llm_calls": 2.8,
+  "mean_tokens": 9168.2,
+  "model_spec": "anthropic:claude-haiku-4-5",
+  "passed": 19,
+  "per_category": {
+    "aggregation": {
+      "passed": 3,
+      "total": 3
+    },
+    "ambiguous": {
+      "passed": 3,
+      "total": 3
+    },
+    "comparison": {
+      "passed": 3,
+      "total": 3
+    },
+    "lookup": {
+      "passed": 3,
+      "total": 3
+    },
+    "root_cause": {
+      "judge_passed": 2,
+      "judged": 3,
+      "passed": 2,
+      "rule_passed": 3,
+      "total": 3
+    },
+    "trend": {
+      "passed": 3,
+      "total": 3
+    },
+    "unanswerable": {
+      "passed": 2,
+      "total": 2
+    }
+  },
+  "questions": 20,
+  "questions_dir": "benchmark/generated/adsight-demo",
+  "run_id": "var-b4-2-v3",
+  "salt": "rep2",
+  "sample": 20,
+  "status": "complete",
+  "total_cost_usd": 0.11768
+}

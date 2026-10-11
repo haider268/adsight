@@ -1,0 +1,527 @@
+{
+  "jobs": {
+    "demo-b0-v3": {
+      "arch": "b0",
+      "categories": {
+        "aggregation": {
+          "accuracy": 0.9333,
+          "cost_usd": 0.051461,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 5813.7,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015995,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2671.3,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.054468,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 5935.7,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.050054,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 5759.7,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.2105,
+          "cost_usd": 0.100771,
+          "judge_accuracy": 0.2105,
+          "mean_llm_calls": 1.895,
+          "mean_tokens": 6831.9,
+          "questions": 19
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.06202,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6357.3,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.01526,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2647.3,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "demo-b1-v3": {
+      "arch": "b1",
+      "categories": {
+        "aggregation": {
+          "accuracy": 0.8667,
+          "cost_usd": 0.070318,
+          "mean_llm_calls": 2.067,
+          "mean_tokens": 7249.8,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 0.7,
+          "cost_usd": 0.058779,
+          "mean_llm_calls": 1.9,
+          "mean_tokens": 8470.3,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.070628,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 7056.1,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.06749,
+          "mean_llm_calls": 2.067,
+          "mean_tokens": 7102.2,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.6316,
+          "cost_usd": 0.386165,
+          "judge_accuracy": 0.6316,
+          "mean_llm_calls": 5.737,
+          "mean_tokens": 28438.4,
+          "questions": 19
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.083126,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 7559.7,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 0.8,
+          "cost_usd": 0.024635,
+          "mean_llm_calls": 1.1,
+          "mean_tokens": 3706.5,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "demo-b2-v3": {
+      "arch": "b2",
+      "categories": {
+        "aggregation": {
+          "accuracy": 0.8667,
+          "cost_usd": 0.055273,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6068.3,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.016527,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2787.0,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.059348,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6234.7,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.056124,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6139.7,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.4211,
+          "cost_usd": 0.121992,
+          "judge_accuracy": 0.4211,
+          "mean_llm_calls": 1.947,
+          "mean_tokens": 8012.0,
+          "questions": 19
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.07019,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6826.3,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 0.9,
+          "cost_usd": 0.015663,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2757.8,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "demo-b3-v3": {
+      "arch": "b3",
+      "categories": {
+        "aggregation": {
+          "accuracy": 0.8667,
+          "cost_usd": 0.055273,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6068.3,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.016527,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2787.0,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.059348,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6234.7,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.056124,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6139.7,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.4737,
+          "cost_usd": 0.161755,
+          "judge_accuracy": 0.4737,
+          "mean_llm_calls": 3.105,
+          "mean_tokens": 11628.8,
+          "questions": 19
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.07019,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 6826.3,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 0.9,
+          "cost_usd": 0.015663,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2757.8,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "demo-b4-v3": {
+      "arch": "b4",
+      "categories": {
+        "aggregation": {
+          "accuracy": 1.0,
+          "cost_usd": 0.050235,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8716.4,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015475,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2645.7,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.060019,
+          "mean_llm_calls": 3.267,
+          "mean_tokens": 9819.2,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.05456,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8814.8,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.6316,
+          "cost_usd": 0.19275,
+          "judge_accuracy": 0.6316,
+          "mean_llm_calls": 4.947,
+          "mean_tokens": 19730.9,
+          "questions": 19
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.073135,
+          "mean_llm_calls": 3.533,
+          "mean_tokens": 11501.7,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015076,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2635.1,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "gold-b0-v3": {
+      "arch": "b0",
+      "categories": {
+        "aggregation": {
+          "accuracy": 0.9333,
+          "cost_usd": 0.052856,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 5873.9,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.01613,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2676.4,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 0.8,
+          "cost_usd": 0.054218,
+          "mean_llm_calls": 1.933,
+          "mean_tokens": 5780.7,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 0.9333,
+          "cost_usd": 0.050361,
+          "mean_llm_calls": 2.0,
+          "mean_tokens": 5767.4,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.3,
+          "cost_usd": 0.096786,
+          "judge_accuracy": 0.3,
+          "mean_llm_calls": 1.75,
+          "mean_tokens": 6357.4,
+          "questions": 20
+        },
+        "trend": {
+          "accuracy": 0.9333,
+          "cost_usd": 0.057932,
+          "mean_llm_calls": 1.933,
+          "mean_tokens": 6012.3,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015383,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2654.3,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "gold-b4-v3": {
+      "arch": "b4",
+      "categories": {
+        "aggregation": {
+          "accuracy": 1.0,
+          "cost_usd": 0.078103,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8832.9,
+          "questions": 15
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015468,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2645.1,
+          "questions": 10
+        },
+        "comparison": {
+          "accuracy": 0.8667,
+          "cost_usd": 0.094336,
+          "mean_llm_calls": 3.267,
+          "mean_tokens": 10109.3,
+          "questions": 15
+        },
+        "lookup": {
+          "accuracy": 0.9333,
+          "cost_usd": 0.076705,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8680.7,
+          "questions": 15
+        },
+        "root_cause": {
+          "accuracy": 0.55,
+          "cost_usd": 0.164212,
+          "judge_accuracy": 0.55,
+          "mean_llm_calls": 4.55,
+          "mean_tokens": 17149.3,
+          "questions": 20
+        },
+        "trend": {
+          "accuracy": 0.8667,
+          "cost_usd": 0.112068,
+          "mean_llm_calls": 3.6,
+          "mean_tokens": 11821.5,
+          "questions": 15
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015116,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2638.8,
+          "questions": 10
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "var-b4-1-v3": {
+      "arch": "b4",
+      "categories": {
+        "aggregation": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015252,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8673.3,
+          "questions": 3
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.004389,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2611.3,
+          "questions": 3
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.019345,
+          "mean_llm_calls": 3.333,
+          "mean_tokens": 10355.0,
+          "questions": 3
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.01486,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8570.7,
+          "questions": 3
+        },
+        "root_cause": {
+          "accuracy": 0.6667,
+          "cost_usd": 0.021039,
+          "judge_accuracy": 0.6667,
+          "mean_llm_calls": 4.667,
+          "mean_tokens": 18775.3,
+          "questions": 3
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.021907,
+          "mean_llm_calls": 3.667,
+          "mean_tokens": 11774.0,
+          "questions": 3
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.002971,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2625.0,
+          "questions": 2
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    },
+    "var-b4-2-v3": {
+      "arch": "b4",
+      "categories": {
+        "aggregation": {
+          "accuracy": 1.0,
+          "cost_usd": 0.015221,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8660.7,
+          "questions": 3
+        },
+        "ambiguous": {
+          "accuracy": 1.0,
+          "cost_usd": 0.004491,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2625.0,
+          "questions": 3
+        },
+        "comparison": {
+          "accuracy": 1.0,
+          "cost_usd": 0.019077,
+          "mean_llm_calls": 3.333,
+          "mean_tokens": 10234.0,
+          "questions": 3
+        },
+        "lookup": {
+          "accuracy": 1.0,
+          "cost_usd": 0.014701,
+          "mean_llm_calls": 3.0,
+          "mean_tokens": 8538.0,
+          "questions": 3
+        },
+        "root_cause": {
+          "accuracy": 0.6667,
+          "cost_usd": 0.037055,
+          "judge_accuracy": 0.6667,
+          "mean_llm_calls": 4.0,
+          "mean_tokens": 17177.0,
+          "questions": 3
+        },
+        "trend": {
+          "accuracy": 1.0,
+          "cost_usd": 0.024126,
+          "mean_llm_calls": 3.667,
+          "mean_tokens": 12132.0,
+          "questions": 3
+        },
+        "unanswerable": {
+          "accuracy": 1.0,
+          "cost_usd": 0.003008,
+          "mean_llm_calls": 1.0,
+          "mean_tokens": 2632.5,
+          "questions": 2
+        }
+      },
+      "judge": "anthropic:claude-haiku-4-5",
+      "model": "anthropic:claude-haiku-4-5",
+      "status": "complete"
+    }
+  },
+  "plan": "haiku-demo-v3"
+}
