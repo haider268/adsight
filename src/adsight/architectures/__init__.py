@@ -13,6 +13,7 @@ from adsight.benchmark.answer import AgentAnswer
 from adsight.llm.base import LLMProvider
 from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
+from adsight.tuning import DEFAULT_TUNING, Tuning
 
 ARCHITECTURES: dict[str, Callable[..., Any]] = {
     "b0": b0.build_graph,
@@ -21,7 +22,15 @@ ARCHITECTURES: dict[str, Callable[..., Any]] = {
     "b3": b3.build_graph,
     "b4": b4.build_graph,
 }
-MAX_LLM_CALLS = {"b0": 2, "b1": 6, "b2": 2, "b3": 5, "b4": 7}  # per question, before retries
+
+
+def max_llm_calls(t: Tuning = DEFAULT_TUNING) -> dict[str, int]:
+    """LLM calls per question before retries: B1 one per step; B3 plan, answer and one per
+    fix; B4 adds classify and one resynthesize."""
+    return {"b0": 2, "b1": t.b1_max_steps, "b2": 2, "b3": 2 + t.max_fixes, "b4": 4 + t.max_fixes}
+
+
+MAX_LLM_CALLS = max_llm_calls()
 
 
 @dataclass(frozen=True)

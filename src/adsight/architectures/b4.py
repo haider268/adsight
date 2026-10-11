@@ -99,7 +99,7 @@ def build_graph(
         return {"answer": AgentAnswer(kind=kind, summary=c["reason"]), "untraceable_numbers": 0}
 
     def route_check(state: AgentState) -> str:
-        if needs_fix(state):
+        if needs_fix(state, rt.tuning.max_fixes):
             return "fix"
         return "diagnose" if state["classification"]["kind"] == "diagnostic" else "synthesize"
 

@@ -765,11 +765,12 @@ def c_months_build(env: Env, params: Params) -> Candidate:
 
 # --- trends ------------------------------------------------------------------
 
-TREND_FLAT_BAND_PCT = 5.0
-_TREND_TAIL = (
-    " Is it rising, falling, or roughly flat? Treat a change of less than "
-    f"{TREND_FLAT_BAND_PCT:g}% between the first and last value as roughly flat."
-)
+
+def trend_tail(band_pct: float) -> str:
+    return (
+        " Is it rising, falling, or roughly flat? Treat a change of less than "
+        f"{band_pct:g}% between the first and last value as roughly flat."
+    )
 
 
 def _trend(
@@ -783,6 +784,7 @@ def _trend(
     points: int,
 ) -> Candidate:
     model, level, key, metric = env.model, params["level"], params["entity"], params["metric"]
+    band = model.tuning.trend_flat_band_pct
     from_sql = from_clause(model, [level], [])
     where = [f"{level_key(model, level)} = {_lit(key)}", _between(env, start, end)]
     sql = render_sql(
@@ -806,8 +808,8 @@ def _trend(
     return Candidate(
         template=template,
         category="trend",
-        question=text + _TREND_TAIL,
-        scoring={"type": "trend", "unit": _unit(metric), "flat_band_pct": TREND_FLAT_BAND_PCT},
+        question=text + trend_tail(band),
+        scoring={"type": "trend", "unit": _unit(metric), "flat_band_pct": band},
         params=params,
         sql=sql,
         spec=spec,

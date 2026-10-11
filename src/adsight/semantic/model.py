@@ -6,6 +6,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from adsight.tuning import Tuning
+
 MeasureName = Literal["spend", "impressions", "clicks", "link_clicks", "reach", "conversions"]
 MEASURES: tuple[MeasureName, ...] = (
     "spend",
@@ -79,6 +81,7 @@ class SemanticModel(_Frozen):
     levels: list[Level]  # top to bottom
     attributes: list[Attribute] = []
     change_log: ChangeLog | None = None
+    tuning: Tuning = Tuning()  # per-dataset overrides of the thresholds in adsight.tuning
 
     @model_validator(mode="after")
     def _consistent(self) -> "SemanticModel":
@@ -121,6 +124,9 @@ def load_model(path: Path) -> SemanticModel:
 
 def dump_model(model: SemanticModel, path: Path) -> None:
     data = model.model_dump(mode="json", exclude_none=True)
+    data["tuning"] = model.tuning.model_dump(mode="json", exclude_defaults=True)
+    if not data["tuning"]:
+        data.pop("tuning")
     for attr in data.get("attributes", []):
         if not attr.get("time_varying"):
             attr.pop("time_varying", None)

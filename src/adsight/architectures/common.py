@@ -17,13 +17,11 @@ from adsight.llm.schema import portable_schema
 from adsight.llm.types import Effort, LLMRequest, Msg
 from adsight.semantic.model import SemanticModel
 from adsight.sql_safety import SqlResult, run_sql
+from adsight.tuning import DEFAULT_TUNING, Tuning
 
 M = TypeVar("M", bound=BaseModel)
 
 RETRY_SALT = "retry1"
-MAX_PLAN_STEPS = 4
-MAX_FIXES = 3
-RESULT_ROWS = 25
 
 
 class AgentState(TypedDict, total=False):
@@ -78,6 +76,11 @@ class Runtime:
     meter: Meter = field(default_factory=Meter)
     semantic: SemanticModel | None = None
     salt: str = ""  # run-level salt: repeat runs are independent samples
+
+    @property
+    def tuning(self) -> Tuning:
+        """The dataset's limits (its semantic YAML may override the defaults)."""
+        return self.semantic.tuning if self.semantic is not None else DEFAULT_TUNING
 
 
 def retry_salt(salt: str) -> str:
@@ -163,7 +166,7 @@ def plan_node(rt: Runtime) -> Any:  # Any: LangGraph's add_node overloads
         p = await call_llm(rt, PlanJSON, PLAN.format(question=state["question"]), PLAN_MAX_TOKENS)
         plan_steps = [
             {"goal": s.goal, "sql": s.sql, "pending": True, "issues": []}
-            for s in p.steps[:MAX_PLAN_STEPS]
+            for s in p.steps[: rt.tuning.max_plan_steps]
         ]
         record = {"node": "plan", "kind": p.kind, "reason": p.reason, "steps": len(plan_steps)}
         return {
@@ -195,8 +198,9 @@ def execute_node(rt: Runtime) -> Any:
             if not step["pending"]:
                 continue
             result = run_sql(rt.con, step["sql"], rt.allowed_tables)
-            step.update(result=result, text=format_result(result, RESULT_ROWS), pending=False)
-            step["rows"] = result.rows[:RESULT_ROWS]
+            rows = rt.tuning.result_rows
+            step.update(result=result, text=format_result(result, rows), pending=False)
+            step["rows"] = result.rows[:rows]
             step["checked"] = False
             sql_list.append(step["sql"])
         return {"plan_steps": plan_steps, "sql_list": sql_list}
@@ -214,8 +218,8 @@ def check(state: AgentState) -> AgentState:
     return {"plan_steps": plan_steps}
 
 
-def needs_fix(state: AgentState) -> bool:
-    return state.get("fixes", 0) < MAX_FIXES and any(s["issues"] for s in state["plan_steps"])
+def needs_fix(state: AgentState, max_fixes: int) -> bool:
+    return state.get("fixes", 0) < max_fixes and any(s["issues"] for s in state["plan_steps"])
 
 
 def fix_node(rt: Runtime) -> Any:

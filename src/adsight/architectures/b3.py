@@ -29,10 +29,6 @@ from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
 
 
-def route_check(state: AgentState) -> str:
-    return "fix" if needs_fix(state) else "answer"
-
-
 def build_graph(
     provider: LLMProvider,
     model_spec: str,
@@ -47,8 +43,12 @@ def build_graph(
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
+
+    def route_check(state: AgentState) -> str:
+        return "fix" if needs_fix(state, rt.tuning.max_fixes) else "answer"
 
     graph = StateGraph(AgentState)
     graph.add_node("plan", plan_node(rt))

@@ -45,8 +45,7 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 - Incidents (measured into `manifest.json`): I1 top_ad_paused AD019 03-16; I2 budget_doubled
   S13 04-20; I3 creative_fatigue AD001 05-04 (hidden); I4 audience_edit S09 05-18..24; I5
   tracking_outage A3 06-08..09 (hidden). Hidden incidents have no events_log row.
-- Flat weekly export: one table `perf` (campaign x ad group x full Monday week); ad group
-  names repeat across campaigns ("Video Viewers"), as Google allows.
+- Flat weekly export: one table `perf` (campaign x ad group x Monday week); names repeat.
 
 ## Benchmark contract
 
@@ -87,9 +86,8 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   `anthropic` direct or batched. Specs look like `groq:openai/gpt-oss-120b`.
 - Always CachedProvider(LimitedProvider(inner)): the SQLite cache means a re-run never pays
   twice; `--replay` never calls out. Token buckets per provider; retries with full jitter.
-- `--batch`: each step's calls flush as one Anthropic batch, recorded before submit and
-  re-attached on start-up. Budget guard `ADSIGHT_ANTHROPIC_BUDGET_USD` (default 0 = no
-  Anthropic call) is checked against stored Anthropic spend before every request.
+- `--batch`: calls flush as Anthropic batches, recorded and re-attached on start-up. Budget
+  guard `ADSIGHT_ANTHROPIC_BUDGET_USD` (default 0 = no Anthropic call) checks stored spend.
 
 ## Agents
 
@@ -134,6 +132,13 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
   (switches: secret `ANTHROPIC_API_KEY`, vars `ANTHROPIC_BUDGET_USD`, `BENCH_ENABLED`).
   `bench-export.yml` (manual, no secrets) uploads an export. Current plans:
   `haiku-pilot-v3.yaml` (10 questions per architecture), `haiku-demo-v3.yaml` (full run).
+
+## Adapting to another dataset
+
+Run `adsight inspect` and check the mapping (`adsight semantic check`). If volumes differ
+from the demo, override thresholds under `tuning:` in the YAML (fields and defaults in
+`src/adsight/tuning.py`; unknown keys fail). Then `bench generate`, review pending
+questions, label 20-30 root-cause answers and run `bench judge-check` before trusting the judge.
 
 ## Rules
 

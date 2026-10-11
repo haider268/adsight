@@ -54,6 +54,7 @@ def build_graph(
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
 

@@ -19,18 +19,7 @@ from adsight.generate.wording import is_additive
 from adsight.semantic.metrics import METRICS, sql_expr
 from adsight.semantic.model import MeasureName, SemanticModel
 from adsight.semantic.sql import date_col, measure_col
-
-MIN_CONVERSIONS = 20
-MIN_CONVERSIONS_PER_POINT = 10
-MIN_IMPRESSIONS = 1000
-MIN_CLICKS = 100
-MIN_CLICKS_PER_POINT = 50
-MIN_DAILY_CONVERSIONS = 1.0
-MARGIN_ADDITIVE = 0.03
-MARGIN_RATIO = 0.05
-TREND_MIN_CHANGE = 9.0
-TREND_MAX_FLAT = 2.0
-MIN_COVERAGE = 0.80
+from adsight.tuning import Tuning
 
 
 @dataclass(frozen=True)
@@ -95,34 +84,34 @@ def _scopes(
     }
 
 
-def _volume_problem(spec: LintSpec, scope: _Scope) -> str | None:
+def _volume_problem(spec: LintSpec, scope: _Scope, t: Tuning) -> str | None:
     metric = spec.metric
     point = spec.kind == "trend"
     if metric in ("cpl", "cvr"):
-        need = MIN_CONVERSIONS_PER_POINT if point else MIN_CONVERSIONS
+        need = t.min_conversions_per_point if point else t.min_conversions
         if (scope.conversions or 0) < need:
             return f"{scope.key}: {scope.conversions or 0:g} conversions < {need}"
     elif metric in ("ctr", "cpm", "frequency"):
-        if (scope.impressions or 0) < MIN_IMPRESSIONS:
-            return f"{scope.key}: {scope.impressions or 0:g} impressions < {MIN_IMPRESSIONS}"
+        if (scope.impressions or 0) < t.min_impressions:
+            return f"{scope.key}: {scope.impressions or 0:g} impressions < {t.min_impressions}"
     elif metric == "cpc":
-        if (scope.clicks or 0) < MIN_CLICKS:
-            return f"{scope.key}: {scope.clicks or 0:g} clicks < {MIN_CLICKS}"
+        if (scope.clicks or 0) < t.min_clicks:
+            return f"{scope.key}: {scope.clicks or 0:g} clicks < {t.min_clicks}"
     elif is_additive(metric):
-        return _additive_volume_problem(spec, scope)
+        return _additive_volume_problem(spec, scope, t)
     return None
 
 
-def _additive_volume_problem(spec: LintSpec, scope: _Scope) -> str | None:
+def _additive_volume_problem(spec: LintSpec, scope: _Scope, t: Tuning) -> str | None:
     """Additive metrics need real volume: a point or member may be smaller than a scope."""
     metric, value = spec.metric, scope.value or 0.0
     member = spec.kind in ("trend", "comparison")
     if metric == "conversions":
-        need = MIN_CONVERSIONS_PER_POINT if member else MIN_CONVERSIONS
+        need = t.min_conversions_per_point if member else t.min_conversions
     elif metric in ("clicks", "link_clicks"):
-        need = MIN_CLICKS_PER_POINT if member else MIN_CLICKS
+        need = t.min_clicks_per_point if member else t.min_clicks
     elif metric == "impressions":
-        need = MIN_IMPRESSIONS
+        need = t.min_impressions
     else:  # spend
         return None if value > 0 else f"{scope.key}: {metric} is {value:g}, not > 0"
     if value < need:
@@ -185,6 +174,7 @@ def lint(
 def _lint_sql(
     sql: str, spec: LintSpec, con: duckdb.DuckDBPyConnection, model: SemanticModel
 ) -> LintResult:
+    t = model.tuning
     # R1: runs, returns rows, no NULLs
     try:
         rows = con.execute(sql).fetchall()
@@ -209,15 +199,15 @@ def _lint_sql(
         scope = scopes.get(key)
         if scope is None:
             return _reject("R2_VOLUME", f"{key}: no rows in scope")
-        problem = _volume_problem(spec, scope)
+        problem = _volume_problem(spec, scope, t)
         if problem:
             return _reject("R2_VOLUME", problem)
     if spec.per_day and spec.metric == "conversions":
         average = _num(rows[0][0])
-        if average < MIN_DAILY_CONVERSIONS:
+        if average < t.min_daily_conversions:
             return _reject(
                 "R2_VOLUME",
-                f"average {average:.3g} conversions per day < {MIN_DAILY_CONVERSIONS:g}",
+                f"average {average:.3g} conversions per day < {t.min_daily_conversions:g}",
             )
 
     ratio = not is_additive(spec.metric)
@@ -226,7 +216,7 @@ def _lint_sql(
         if len(rows) < 2:
             return _reject("R3_MARGIN", "fewer than 2 rows to rank")
         top, second = _num(rows[0][2]), _num(rows[1][2])
-        need = MARGIN_RATIO if ratio else MARGIN_ADDITIVE
+        need = t.margin_ratio if ratio else t.margin_additive
         margin = abs(top - second) / abs(second) if second != 0 else (0.0 if top == 0 else 1.0)
         if margin < need:
             return _reject(
@@ -255,11 +245,11 @@ def _lint_sql(
         if first == 0:
             return _reject("R5_TREND", "first value is 0")
         change = (last - first) / first * 100
-        if TREND_MAX_FLAT < abs(change) < TREND_MIN_CHANGE:
+        if t.trend_max_flat < abs(change) < t.trend_min_change:
             return _reject(
                 "R5_TREND",
-                f"change {change:+.2f}% is neither flat (<= {TREND_MAX_FLAT:g}%) "
-                f"nor clear (>= {TREND_MIN_CHANGE:g}%)",
+                f"change {change:+.2f}% is neither flat (<= {t.trend_max_flat:g}%) "
+                f"nor clear (>= {t.trend_min_change:g}%)",
             )
 
     if spec.kind == "comparison":
@@ -281,7 +271,7 @@ def _lint_sql(
     for key in scope_keys:
         total = denominators.get(key if spec.time_groups else "*", 0)
         days = scopes[key].days
-        if total == 0 or days / total < MIN_COVERAGE:
+        if total == 0 or days / total < t.min_coverage:
             return _reject("R7_COVERAGE", f"{key}: data on {days} of {total} dates")
     return _ok()
 

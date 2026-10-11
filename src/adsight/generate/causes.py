@@ -20,34 +20,6 @@ from adsight.generate.templates import Env
 from adsight.semantic.model import MeasureName, SemanticModel
 from adsight.semantic.sql import date_col, from_clause, level_key, measure_col
 
-MATERIAL_BUDGET_CHANGE = 0.20  # |new/old - 1| at or above this is material
-EFFECT_MIN_SCOPE = 0.15  # min relative CPL change on the changed scope
-EFFECT_MIN_PARENT = 0.10  # min relative CPL change to also ask at parent level
-SPEND_JUMP = 0.40  # min relative spend rise for a "spend jumped" angle
-DECOY_WINDOW_DAYS = 21
-TRACKING_BASELINE_DAYS = 14
-TRACKING_MIN_BASELINE = 8  # baseline conversions per day
-TRACKING_MAX_SHARE = 0.15  # conversions at or below this share of baseline
-TRACKING_MIN_CLICK_SHARE = 0.75  # clicks at or above this share of baseline
-FATIGUE_WEEKS = 6
-FATIGUE_MIN_FREQUENCY = 2.0
-FATIGUE_MIN_FREQUENCY_RISE = 0.5
-FATIGUE_MAX_CTR_SHARE = 0.70
-NOISE_MIN_JUMP = 0.40
-NOISE_MAX_INPUT_CHANGE = 0.07
-NOISE_MIN_BASELINE = 20  # conversions per week
-CALENDAR_MAX_DAILY_CHANGE = 0.02
-CALENDAR_MIN_TOTAL_CHANGE = 0.05
-
-EFFECT_BEFORE_DAYS = 14
-EFFECT_AFTER_DAYS = 14
-EFFECT_AFTER_DAYS_AUDIENCE = 7
-EFFECT_MIN_CONVERSIONS_BEFORE = 20
-EFFECT_MIN_CONVERSIONS_AFTER = 10
-TRACKING_WEEKLY_BASELINE_WEEKS = 4
-TRACKING_CHILD_MIN_BASELINE = 3  # conversions per day, for the "child" tracking angle
-NOISE_EXCLUSION_DAYS = 21
-
 CauseKind = Literal["logged", "tracking", "fatigue", "calendar", "noise"]
 Evidence = dict[str, float | str]
 
@@ -232,24 +204,27 @@ def read_changes(env: Env, con: duckdb.DuckDBPyConnection) -> list[Change]:
                 change_type=str(ctype),
                 old=None if old is None else str(old),
                 new=None if new is None else str(new),
-                material=_is_material(str(ctype), old, new),
+                material=_is_material(
+                    str(ctype), old, new, env.model.tuning.material_budget_change
+                ),
             )
         )
     return changes
 
 
-def _is_material(change_type: str, old: object, new: object) -> bool:
+def _is_material(change_type: str, old: object, new: object, threshold: float) -> bool:
     if change_type == "launched":
         return False
     if change_type == "budget_change":
         try:
-            return abs(float(str(new)) / float(str(old)) - 1) >= MATERIAL_BUDGET_CHANGE
+            return abs(float(str(new)) / float(str(old)) - 1) >= threshold
         except (TypeError, ValueError, ZeroDivisionError):
             return True
     return True  # paused, audience_edit and any other change type
 
 
 def _logged_cause(env: Env, con: duckdb.DuckDBPyConnection, change: Change) -> Cause | None:
+    t = env.model.tuning
     model = env.model
     if change.change_type == "paused":
         parent = _parent(env, change.level, change.key)
@@ -259,22 +234,24 @@ def _logged_cause(env: Env, con: duckdb.DuckDBPyConnection, change: Change) -> C
     else:
         scope_level, scope_key = change.level, change.key
     d = change.day
-    before0, before1 = d - timedelta(days=EFFECT_BEFORE_DAYS), d - timedelta(days=1)
+    before0, before1 = d - timedelta(days=t.effect_before_days), d - timedelta(days=1)
     after_days = (
-        EFFECT_AFTER_DAYS_AUDIENCE if change.change_type == "audience_edit" else EFFECT_AFTER_DAYS
+        t.effect_after_days_audience
+        if change.change_type == "audience_edit"
+        else t.effect_after_days
     )
     after0, after1 = d, d + timedelta(days=after_days - 1)
     before = _totals(model, con, scope_level, scope_key, before0, before1)
     after = _totals(model, con, scope_level, scope_key, after0, after1)
     if (
-        before.conversions < EFFECT_MIN_CONVERSIONS_BEFORE
-        or after.conversions < EFFECT_MIN_CONVERSIONS_AFTER
+        before.conversions < t.effect_min_conversions_before
+        or after.conversions < t.effect_min_conversions_after
         or before.cpl is None
         or after.cpl is None
     ):
         return None
     effect = _rel(after.cpl, before.cpl)
-    if effect < EFFECT_MIN_SCOPE:
+    if effect < t.effect_min_scope:
         return None
 
     evidence: Evidence = {
@@ -286,7 +263,7 @@ def _logged_cause(env: Env, con: duckdb.DuckDBPyConnection, change: Change) -> C
         "conversions_before": before.conversions,
         "conversions_after": after.conversions,
         "effect": round(effect, 4),
-        "spend_per_day_before": round(before.spend / EFFECT_BEFORE_DAYS, 4),
+        "spend_per_day_before": round(before.spend / t.effect_before_days, 4),
         "spend_per_day_after": round(after.spend / after_days, 4),
         "after_days": float(after_days),
     }
@@ -296,7 +273,7 @@ def _logged_cause(env: Env, con: duckdb.DuckDBPyConnection, change: Change) -> C
         p_after = _totals(model, con, parent[0], parent[1], after0, after1)
         if p_before.cpl is not None and p_after.cpl is not None:
             p_effect = _rel(p_after.cpl, p_before.cpl)
-            if p_effect >= EFFECT_MIN_PARENT:
+            if p_effect >= t.effect_min_parent:
                 evidence.update(
                     {
                         "parent_level": parent[0],
@@ -305,8 +282,8 @@ def _logged_cause(env: Env, con: duckdb.DuckDBPyConnection, change: Change) -> C
                         "parent_cpl_after": round(p_after.cpl, 4),
                     }
                 )
-    spend_jump = _rel(after.spend / after_days, before.spend / EFFECT_BEFORE_DAYS)
-    if spend_jump >= SPEND_JUMP:
+    spend_jump = _rel(after.spend / after_days, before.spend / t.effect_before_days)
+    if spend_jump >= t.spend_jump:
         evidence["spend_jump"] = round(spend_jump, 4)
     if change.change_type == "paused":
         own = _totals(model, con, change.level, change.key, before0, before1)
@@ -354,6 +331,7 @@ def _series(
 
 
 def _tracking(env: Env, con: duckdb.DuckDBPyConnection) -> list[Cause]:
+    t = env.model.tuning
     model, ctx = env.model, env.ctx
     top = env.levels()[0]
     if ctx.grain == "day":
@@ -361,11 +339,11 @@ def _tracking(env: Env, con: duckdb.DuckDBPyConnection) -> list[Cause]:
             ctx.data_start + timedelta(days=i)
             for i in range((ctx.data_end - ctx.data_start).days + 1)
         ]
-        baseline_n, step_days = TRACKING_BASELINE_DAYS, 1
+        baseline_n, step_days = t.tracking_baseline_days, 1
         series = _series(env, con, top, date_col(model))
     else:
         steps = week_starts(ctx)
-        baseline_n, step_days = TRACKING_WEEKLY_BASELINE_WEEKS, 7
+        baseline_n, step_days = t.tracking_weekly_baseline_weeks, 7
         series = _series(env, con, top, date_col(model))
     causes: list[Cause] = []
     for key, _label in env.entities[top]:
@@ -377,9 +355,9 @@ def _tracking(env: Env, con: duckdb.DuckDBPyConnection) -> list[Cause]:
             base_clicks = sum(p[2] for p in prev) / baseline_n
             _, conv, clicks, _, _ = data.get(steps[i], (0.0,) * 5)
             if (
-                base_conv >= TRACKING_MIN_BASELINE
-                and conv <= TRACKING_MAX_SHARE * base_conv
-                and clicks >= TRACKING_MIN_CLICK_SHARE * base_clicks
+                base_conv >= t.tracking_min_baseline
+                and conv <= t.tracking_max_share * base_conv
+                and clicks >= t.tracking_min_click_share * base_clicks
             ):
                 flagged.append((steps[i], conv, clicks, base_conv, base_clicks))
         runs: list[list[tuple[date, float, float, float, float]]] = []
@@ -426,7 +404,8 @@ def _tracking_child(
     env: Env, con: duckdb.DuckDBPyConnection, top_key: str, start: date, baseline_days: int
 ) -> Evidence:
     """The child of the top entity with the most baseline conversions per day, if it has at
-    least TRACKING_CHILD_MIN_BASELINE (so a question about it is meaningful)."""
+    least tuning.tracking_child_min_baseline (so a question about it is meaningful)."""
+    t = env.model.tuning
     names = env.levels()
     if len(names) < 2:
         return {}
@@ -446,7 +425,7 @@ def _tracking_child(
         per_day = totals.conversions / baseline_days
         if best is None or (per_day, key) > best:
             best = (per_day, key)
-    if best is None or best[0] < TRACKING_CHILD_MIN_BASELINE:
+    if best is None or best[0] < t.tracking_child_min_baseline:
         return {}
     return {
         "child_level": child_level,
@@ -464,6 +443,7 @@ def _week_expr(env: Env) -> str:
 
 
 def _fatigue(env: Env, con: duckdb.DuckDBPyConnection, material: list[Change]) -> list[Cause]:
+    t = env.model.tuning
     model = env.model
     if "reach" not in model.fact.measures or "clicks" not in model.fact.measures:
         return []
@@ -473,8 +453,8 @@ def _fatigue(env: Env, con: duckdb.DuckDBPyConnection, material: list[Change]) -
     causes: list[Cause] = []
     for key, label in env.entities[bottom]:
         data = series.get(key, {})
-        for i in range(len(weeks) - FATIGUE_WEEKS + 1):
-            window = weeks[i : i + FATIGUE_WEEKS]
+        for i in range(len(weeks) - t.fatigue_weeks + 1):
+            window = weeks[i : i + t.fatigue_weeks]
             first = [data.get(w) for w in window[:2]]
             last = [data.get(w) for w in window[-2:]]
             if any(p is None for p in first + last):
@@ -491,9 +471,9 @@ def _fatigue(env: Env, con: duckdb.DuckDBPyConnection, material: list[Change]) -
             c0, c1 = clicks0 / impr0, clicks1 / impr1
             start, end = window[0], window[-1] + timedelta(days=6)
             if (
-                f1 >= FATIGUE_MIN_FREQUENCY
-                and f1 - f0 >= FATIGUE_MIN_FREQUENCY_RISE
-                and c1 <= FATIGUE_MAX_CTR_SHARE * c0
+                f1 >= t.fatigue_min_frequency
+                and f1 - f0 >= t.fatigue_min_frequency_rise
+                and c1 <= t.fatigue_max_ctr_share * c0
                 and not any(
                     _on_entity_or_ancestor(env, ch, bottom, key) and start <= ch.day <= end
                     for ch in material
@@ -538,6 +518,7 @@ def _calendar(
     env: Env, con: duckdb.DuckDBPyConnection, earlier: list[Cause], material: list[Change]
 ) -> list[Cause]:
     """Monthly totals that differ only because months have different lengths (daily data)."""
+    t = env.model.tuning
     if env.ctx.grain != "day":
         return []  # weekly rows cannot be split into calendar days
     model = env.model
@@ -556,9 +537,9 @@ def _calendar(
             if d1 == d2 or not t1 or not t2:
                 continue
             a1, a2 = t1 / d1, t2 / d2
-            if abs(t2 / t1 - 1) < CALENDAR_MIN_TOTAL_CHANGE:
+            if abs(t2 / t1 - 1) < t.calendar_min_total_change:
                 continue
-            if abs(a2 / a1 - 1) > CALENDAR_MAX_DAILY_CHANGE:
+            if abs(a2 / a1 - 1) > t.calendar_max_daily_change:
                 continue
             if any(
                 related(env, ch.level, ch.key, level, key) and m1.start <= ch.day <= m2.end
@@ -603,12 +584,13 @@ def _calendar(
 def _noise(
     env: Env, con: duckdb.DuckDBPyConnection, earlier: list[Cause], material: list[Change]
 ) -> list[Cause]:
+    t = env.model.tuning
     if "clicks" not in env.model.fact.measures:
         return []
     level = _second_level(env)
     weeks = week_starts(env.ctx)
     series = _series(env, con, level, _week_expr(env))
-    pad = timedelta(days=NOISE_EXCLUSION_DAYS)
+    pad = timedelta(days=t.noise_exclusion_days)
     causes: list[Cause] = []
     for key, label in env.entities[level]:
         data = series.get(key, {})
@@ -617,14 +599,14 @@ def _noise(
             if p is None or c is None:
                 continue
             (s0, v0, k0, _, _), (s1, v1, k1, _, _) = p, c
-            if v0 < NOISE_MIN_BASELINE or not s0 or not k0:
+            if v0 < t.noise_min_baseline or not s0 or not k0:
                 continue
             jump = v1 / v0 - 1
-            if abs(jump) < NOISE_MIN_JUMP:
+            if abs(jump) < t.noise_min_jump:
                 continue
             if (
-                abs(s1 / s0 - 1) > NOISE_MAX_INPUT_CHANGE
-                or abs(k1 / k0 - 1) > NOISE_MAX_INPUT_CHANGE
+                abs(s1 / s0 - 1) > t.noise_max_input_change
+                or abs(k1 / k0 - 1) > t.noise_max_input_change
             ):
                 continue
             lo, hi = w1 - pad, w1 + timedelta(days=6) + pad

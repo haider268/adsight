@@ -24,8 +24,6 @@ from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
 from adsight.sql_safety import run_sql
 
-MAX_THINK = 6
-SCRATCHPAD_ROWS = 15
 STEP_LIMIT_SUMMARY = "step limit reached"
 
 
@@ -52,6 +50,7 @@ def build_graph(
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
 
@@ -59,7 +58,7 @@ def build_graph(
         steps = state.get("steps", [])
         n = sum(1 for s in steps if s["node"] == "think") + 1
         text = B1_STEP.format(question=state["question"], scratchpad=scratchpad(steps))
-        if n == MAX_THINK:
+        if n == rt.tuning.b1_max_steps:
             text += B1_LAST_STEP
         step = await call_llm(rt, ReActStep, text, STEP_MAX_TOKENS)
         record = {"node": "think", "n": n, "thought": step.thought, "action": step.action}
@@ -67,7 +66,7 @@ def build_graph(
         sql_list = state.get("sql_list", [])
         if step.action == "final":
             update["answer"] = to_agent_answer(step.final, sql_list)
-        elif n >= MAX_THINK:
+        elif n >= rt.tuning.b1_max_steps:
             update["answer"] = AgentAnswer(
                 kind="cannot_answer", summary=STEP_LIMIT_SUMMARY, sql=sql_list
             )
@@ -83,7 +82,7 @@ def build_graph(
             "node": "act",
             "thought": last["thought"],
             "sql": last["sql"],
-            "result": format_result(result, SCRATCHPAD_ROWS),
+            "result": format_result(result, rt.tuning.b1_scratchpad_rows),
         }
         return {
             "steps": [*state["steps"], step],

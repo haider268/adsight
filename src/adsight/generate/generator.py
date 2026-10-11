@@ -20,7 +20,7 @@ from adsight.benchmark.questions import (
     save_questions,
 )
 from adsight.benchmark.refs import compute_expected
-from adsight.generate.causes import DECOY_WINDOW_DAYS, Cause, detect_causes
+from adsight.generate.causes import Cause, detect_causes
 from adsight.generate.context import build_context, write_context
 from adsight.generate.lint import lint
 from adsight.generate.templates import (
@@ -59,11 +59,9 @@ OUTPUT_ORDER = (
 MAX_LINTED_PER_TEMPLATE = 60
 MAX_TEMPLATE_SHARE = 0.40
 TREND_PER_DIRECTION = 5
-TREND_FLAT_BAND_PCT = 5.0
 MAX_EXAMPLES_PER_RULE = 3
 DIRECTIONS = ("up", "down", "flat")
 PERIOD_KIND_ORDER = ("month", "quarter", "last30", "whole", "week")
-MAX_WEEK_SHARE = 0.30  # of a category's period-based questions, rounded down
 MAX_FATIGUE_QUESTIONS = 3
 MAX_CALENDAR_FIRST_PASS = 2
 MAX_NOISE_FIRST_PASS = 4
@@ -99,15 +97,15 @@ def _write_json(data: dict[str, Any], path: Path) -> None:
     )
 
 
-def _trend_direction(con: duckdb.DuckDBPyConnection, cand: Candidate) -> str:
+def _trend_direction(con: duckdb.DuckDBPyConnection, cand: Candidate, band: float) -> str:
     if cand.sql is None:
         raise ValueError(f"trend candidate {cand.params} has no SQL")
     rows = con.execute(cand.sql).fetchall()
     first, last = float(rows[0][1]), float(rows[-1][1])
     change = (last - first) / first * 100
-    if change > TREND_FLAT_BAND_PCT:
+    if change > band:
         return "up"
-    if change < -TREND_FLAT_BAND_PCT:
+    if change < -band:
         return "down"
     return "flat"
 
@@ -198,13 +196,13 @@ def _is_week(env: Env, cand: Candidate) -> bool:
 
 
 def _week_share_ok(env: Env, cand: Candidate, chosen: list[Candidate]) -> bool:
-    """A weekly-period question may join only if weeks stay within MAX_WEEK_SHARE of the
-    category's period-based questions, counting this one."""
+    """A weekly-period question may join only if weeks stay within max_week_share (rounded
+    down) of the category's period-based questions, counting this one."""
     if not _is_week(env, cand):
         return True
     period_based = sum(1 for c in chosen if "period" in c.params) + 1
     weeks = sum(1 for c in chosen if _is_week(env, c)) + 1
-    return weeks <= math.floor(MAX_WEEK_SHARE * period_based)
+    return weeks <= math.floor(env.model.tuning.max_week_share * period_based)
 
 
 def select_root_causes(
@@ -324,7 +322,9 @@ def generate_benchmark(
             if linter.check(cand, ctx):
                 accepted.append(cand)
                 if template.category == "trend":
-                    directions[id(cand)] = _trend_direction(con, cand)
+                    directions[id(cand)] = _trend_direction(
+                        con, cand, model.tuning.trend_flat_band_pct
+                    )
                 if _enough(template.category, accepted, directions):
                     break
         pools[template.id] = accepted
@@ -355,8 +355,8 @@ def generate_benchmark(
             )
             if len(chosen) < target:
                 report.shortfalls.append(
-                    f"{category}: the {MAX_WEEK_SHARE:.0%} week-period cap left {len(chosen)} "
-                    f"of {target}; filled with week-period questions"
+                    f"{category}: the {model.tuning.max_week_share:.0%} week-period cap left "
+                    f"{len(chosen)} of {target}; filled with week-period questions"
                 )
         _round_robin(pools, order, target, chosen, lambda c, chosen: True)
         selected[category] = chosen
@@ -365,7 +365,9 @@ def generate_benchmark(
     detection = detect_causes(env, con)
     rc_candidates = [
         c
-        for c in root_cause_candidates(env, detection.causes, detection.decoys, DECOY_WINDOW_DAYS)
+        for c in root_cause_candidates(
+            env, detection.causes, detection.decoys, model.tuning.decoy_window_days
+        )
         if linter.check(c, ctx)
     ]
     selected["root_cause"] = _carry_reviews(

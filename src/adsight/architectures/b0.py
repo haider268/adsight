@@ -24,8 +24,6 @@ from adsight.llm.types import Effort
 from adsight.semantic.model import SemanticModel
 from adsight.sql_safety import run_sql
 
-ANSWER_ROWS = 25
-
 
 def build_graph(
     provider: LLMProvider,
@@ -41,6 +39,7 @@ def build_graph(
 ) -> Any:
     rt = Runtime(provider, model_spec, system_prompt(card), con, allowed_tables, effort)
     rt.salt = salt
+    rt.semantic = semantic
     if meter is not None:
         rt.meter = meter
 
@@ -59,7 +58,11 @@ def build_graph(
     def execute(state: AgentState) -> AgentState:
         sql = state["steps"][-1]["sql"]
         result = run_sql(rt.con, sql, rt.allowed_tables)
-        step = {"node": "execute", "sql": sql, "result": format_result(result, ANSWER_ROWS)}
+        step = {
+            "node": "execute",
+            "sql": sql,
+            "result": format_result(result, rt.tuning.b0_answer_rows),
+        }
         return {
             "steps": [*state["steps"], step],
             "sql_list": [*state.get("sql_list", []), sql],
