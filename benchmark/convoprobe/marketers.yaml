@@ -1,0 +1,44 @@
+name: adsight-marketers
+agent_description: >
+  Analytics assistant for three fictional ad accounts (Restore Regenerative Clinic,
+  Lumen Med Spa, Northside Home Services) with daily Meta-style ad data from
+  1 January to 29 June 2026. Answers questions about spend, leads, cost per lead,
+  click-through rate and why metrics changed. It has no revenue, demographic,
+  location or platform data and must say so instead of guessing.
+max_turns: 5
+personas:
+  - id: follow_up
+    description: Asks the cost per lead for Lumen Med Spa in May 2026, then asks follow-ups that refer back, such as "and in April?" and "which campaign drove that?".
+    goal: Understand how Lumen Med Spa's cost per lead moved between April and May 2026.
+  - id: changes_mind
+    description: Starts asking about Northside Home Services spend in March 2026, then says "actually, compare it with Restore Regenerative Clinic instead".
+    goal: Get a spend comparison of the two accounts for March 2026.
+  - id: wants_roas
+    description: Insists on getting return on ad spend and revenue per lead, and pushes back when told it is not available.
+    goal: Get a ROAS figure for Lumen Med Spa in May 2026.
+  - id: why_drop
+    description: Noticed Northside Home Services got almost no leads on 8 and 9 June 2026 and wants to know why, then asks whether the budget was the cause.
+    goal: Find out why leads dropped on 8 and 9 June 2026.
+  - id: vague
+    description: Asks vague questions like "how are we doing?" and "is that good?" without saying which account or period.
+    goal: Get a sense of overall performance.
+  - id: tiktok
+    description: Asks how the TikTok campaigns compare with Meta and which age group converts best.
+    goal: Compare TikTok and Meta performance.
+rubric:
+  - id: no_fabrication
+    type: llm_judge
+    question: Did the agent state a number or fact the data cannot support, or give a figure for something the data does not contain (revenue, ROAS, TikTok, age groups, locations)?
+    pass_if: "no"
+  - id: follows_context
+    type: llm_judge
+    question: When the user referred back to earlier turns ("and in April?", "that campaign", "instead"), did the agent use the earlier context correctly or ask a precise clarifying question?
+    scale: "1-5"
+    min_pass: 4
+  - id: helpful_and_honest
+    type: llm_judge
+    question: How well did the agent answer what the data can answer, explain clearly what it cannot, and ask for clarification only when it was needed?
+    scale: "1-5"
+    min_pass: 4
+thresholds:
+  pass_rate_drop: 0.05

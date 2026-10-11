@@ -31,6 +31,11 @@ Repository = "https://github.com/haider268/adsight"
 [project.scripts]
 adsight = "adsight.cli:main"
 
+[project.optional-dependencies]
+probe = [
+    "convoprobe",
+]
+
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]
 build-backend = "uv_build"
@@ -54,6 +59,9 @@ packages = ["adsight"]
 testpaths = ["tests"]
 markers = ["live: needs an API key; run with -m live"]
 addopts = "-m 'not live' --cov=adsight --cov-report=term-missing"
+
+[tool.uv.sources]
+convoprobe = { git = "https://github.com/haider268/convoprobe", rev = "a5d66b5" }
 
 [dependency-groups]
 dev = [

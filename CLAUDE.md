@@ -13,8 +13,7 @@ uv run adsight bench refs     # check expected answers against reference SQL (--
 uv run adsight bench generate # write benchmark/generated/adsight-demo/
 uv run adsight bench review benchmark/generated/adsight-demo   # pending root causes
 uv run adsight bench run --questions-dir benchmark/generated/adsight-demo --arch b0 --model groq:openai/gpt-oss-120b
-uv run adsight bench status   # runs with done / retry / error counts and cost
-uv run adsight bench resume --plan benchmark/plans/haiku-pilot-v3.yaml   # one tick of a plan
+uv run adsight bench resume --plan benchmark/plans/haiku-pilot-v3.yaml   # one tick; status lists runs
 uv run adsight bench export --plan <yaml> --out benchmark/results/<plan>/
 uv run adsight bench table --results benchmark/results/<plan> --out docs/results
 uv run adsight bench judge-check --model anthropic:claude-haiku-4-5 --batch   # judge vs labels
@@ -42,15 +41,14 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 
 - 2026-01-01 to 2026-06-29, USD; 3 accounts, 9 campaigns, 18 ad sets, 54 ads, 8,534 metric
   rows, 18 events. RNG per ad-day; state comes from events (add one, never edit the generator).
-- Incidents (measured into `manifest.json`): I1 top_ad_paused AD019 03-16; I2 budget_doubled
-  S13 04-20; I3 creative_fatigue AD001 05-04 (hidden); I4 audience_edit S09 05-18..24; I5
-  tracking_outage A3 06-08..09 (hidden). Hidden incidents have no events_log row.
+- Incidents (in `manifest.json`): I1 AD019 paused 03-16; I2 S13 budget doubled 04-20; I3 AD001
+  fatigue 05-04 (hidden); I4 S09 audience 05-18..24; I5 A3 tracking 06-08..09 (hidden).
 - Flat weekly export: one table `perf` (campaign x ad group x Monday week); names repeat.
 
 ## Benchmark contract
 
-- Seed 7; today is 2026-06-30. 100 questions: 15 each lookup, aggregation, comparison,
-  trend; 20 root_cause; 10 each ambiguous, unanswerable.
+- Seed 7; today is 2026-06-30. 100 questions: 15 each lookup, aggregation, comparison, trend;
+  20 root_cause; 10 each ambiguous, unanswerable.
 - `AgentAnswer`: kind (answer / clarify / cannot_answer), summary, values, entities,
   direction, assumptions, sql. Matching: within 1% or a unit floor, one-to-one; ratios
   also as percents. Entities are normalised (case, quotes, spaces, `_`; months as YYYY-MM)
@@ -110,28 +108,24 @@ uv run pytest                 # offline tests; /check also runs ruff and mypy sr
 - Re-running a run id skips "done" questions. Exit 0 done; 3 budget or daily limit; 4 a
   batch outlasted `--wait-minutes` (the next run re-attaches it). `--salt`: repeat runs
   are independent samples; `--sample N`: N questions spread over the categories.
-- Judge: with `--judge <spec>` a root-cause answer passes when the judge says it names the
-  true cause (the reference_summary, or the manifest causes for gold questions) and invents
-  none. Stored: `passed`, `rule_passed`, `judge_passed`, `judge_json`; default "off".
-- `bench judge-check --model <spec> [--batch]` runs the judge on the 30 labels and writes
-  `.adsight/reports/judge-check-<slug>.json` (agreement, per field, confusion, disagreements).
+- `--judge <spec>`: a root-cause answer passes when the judge says it names the true cause
+  and invents none. Stored: `passed`, `rule_passed`, `judge_passed`, `judge_json`.
+- `bench judge-check --model <spec> [--batch]`: the judge vs the 30 hand labels.
 
 ## Plans, ticks and export
 
-- `benchmark/plans/<name>.yaml`: name, budget_usd (the lower of it and the env budget
-  wins), jobs (id = run id, questions_dir, semantic, arch, model, batch, judge, sample, salt).
+- `benchmark/plans/<name>.yaml`: name, budget_usd (lower of it and env wins), jobs (id = run
+  id, questions_dir, semantic, arch, model, batch, judge, sample, salt, render).
 - `bench resume --plan <yaml> [--wait-minutes M]` is one tick: re-attach batches, run every
   unfinished job at once, exit 0 / 3 / 4 as above, log progress to `.adsight/progress.log`.
-- `adsight bench export --plan <yaml> --out benchmark/results/<plan>/` writes per job
-  `report.json` (with per-question `answers`) and `cassette.jsonl.gz` (every response its
-  results used) plus `summary.json`; `bench run --replay --cassette <file>` replays a job.
-- `bench table --results <dir> [--out docs/results]` writes `results.md` (demo accuracy by
-  category x architecture with the rule check, calls/tokens/cost, gold B0 vs B4, variance,
-  fabrication on unanswerables) and two plain SVG charts, every number from the reports.
-- `bench-tick.yml` runs a tick every 30 min on `vars.BENCH_PLAN`, else `haiku-demo-v3.yaml`
-  (switches: secret `ANTHROPIC_API_KEY`, vars `ANTHROPIC_BUDGET_USD`, `BENCH_ENABLED`).
-  `bench-export.yml` (manual, no secrets) uploads an export. Current plans:
-  `haiku-pilot-v3.yaml` (10 questions per architecture), `haiku-demo-v3.yaml` (full run).
+- `bench export --plan <yaml> --out benchmark/results/<plan>/`: per job `report.json` and
+  `cassette.jsonl.gz` (every response used), plus `summary.json`. `bench verify-results
+  --results <dir>` replays every job offline with its recorded render (up to 3 tries).
+- `bench table --results <dir> [--out docs/results]`: `results.md` and two SVG charts.
+- Render: new runs use "v4" (ORDER BY ties broken); the published v3 run is "v3".
+- `bench-tick.yml` ticks every 30 min on `vars.BENCH_PLAN` (else `haiku-demo-v3.yaml`;
+  switches: secret `ANTHROPIC_API_KEY`, vars `ANTHROPIC_BUDGET_USD`, `BENCH_ENABLED`).
+  `bench-export.yml` (manual, no secrets) uploads an export.
 
 ## Adapting to another dataset
 
@@ -139,6 +133,13 @@ Run `adsight inspect` and check the mapping (`adsight semantic check`). If volum
 from the demo, override thresholds under `tuning:` in the YAML (fields and defaults in
 `src/adsight/tuning.py`; unknown keys fail). Then `bench generate`, review pending
 questions, label 20-30 root-cause answers and run `bench judge-check` before trusting the judge.
+
+## Chat and convoprobe
+
+- `uv run adsight chat --model groq:openai/gpt-oss-120b`: chat; past turns go in the user message.
+- `uv sync --extra probe` installs convoprobe (optional, pinned). Then `uv run convoprobe run
+  benchmark/convoprobe/marketers.yaml --adapter adsight.probe_adapter:agent --html --out
+  results/convoprobe` (model from `ADSIGHT_CHAT_MODEL`; see convoprobe's README for keys).
 
 ## Rules
 
