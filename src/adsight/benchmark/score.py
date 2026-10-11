@@ -23,6 +23,13 @@ FLOOR: dict[str, float] = {"usd": 0.01, "count": 0.5, "number": 0.01, "ratio": 0
 
 CLARIFY_SUMMARY = "Which account, metric and date range do you mean?"
 
+MONTHS = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)  # fmt: skip
+MONTH_NUMBERS = {name: i for i, full in enumerate(MONTHS, 1) for name in (full, full[:3])}
+QUOTES = "\"'`\u2018\u2019\u201c\u201d"  # straight and curly quotes
+
 
 class ScoreResult(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -79,6 +86,30 @@ def _unmatched(expected: dict[str, float], answer: AgentAnswer, unit: Unit) -> l
     return [label for i, label in enumerate(labels) if i not in matched]
 
 
+def normalise_entity(text: str) -> str:
+    """One form for an entity name: no surrounding quotes, casefolded, underscores as
+    spaces, single spaces; months as YYYY-MM ("May 2026", "2026-05-01" -> "2026-05")."""
+    name = " ".join(text.strip().strip(QUOTES).replace("_", " ").casefold().split())
+    iso = re.fullmatch(r"(\d{4})-(\d{2})(?:-01)?", name)
+    if iso:
+        return f"{iso[1]}-{iso[2]}"
+    worded = re.fullmatch(r"([a-z]+)\.? (\d{4})", name)
+    if worded and worded[1] in MONTH_NUMBERS:
+        return f"{worded[2]}-{MONTH_NUMBERS[worded[1]]:02d}"
+    return name
+
+
+def _named_by_question(question: Question, entity: str) -> bool:
+    """Whether the question itself names this (normalised) entity: in double quotes, as its
+    scope, or as a phrase in its text (e.g. the account in "Which Lumen Med Spa ad set")."""
+    quoted = {normalise_entity(n) for n in re.findall(r'"([^"]+)"', question.question)}
+    scope = question.params.get("scope_entity")
+    if entity in quoted or (scope is not None and entity == normalise_entity(scope)):
+        return True
+    text = " ".join(question.question.replace("_", " ").casefold().split())
+    return re.search(rf"(?<!\w){re.escape(entity)}(?!\w)", text) is not None
+
+
 def _missing_reason(missing: list[str]) -> str:
     return f"unmatched expected values: {', '.join(missing)} (each answer value counts once)"
 
@@ -107,10 +138,19 @@ def score(question: Question, answer: AgentAnswer) -> ScoreResult:
             return _fail(f"kind is {answer.kind!r}, expected 'answer'")
         if not answer.entities:
             return _fail("no entities given")
-        top = answer.entities[0].strip().casefold()
-        accepted = {name.casefold() for name in (expected.entity_id, expected.entity_name) if name}
-        if top not in accepted:
-            return _fail(f"first entity {answer.entities[0]!r} is not {expected.entity_id}")
+        accepted = {
+            normalise_entity(name) for name in (expected.entity_id, expected.entity_name) if name
+        }
+        given = [
+            e
+            for e in answer.entities
+            if normalise_entity(e) in accepted
+            or not _named_by_question(question, normalise_entity(e))
+        ]
+        if not given:
+            return _fail("every entity given is one the question names")
+        if normalise_entity(given[0]) not in accepted:
+            return _fail(f"first entity {given[0]!r} is not {expected.entity_id}")
         return _pass()
 
     if isinstance(scoring, TrendScoring):

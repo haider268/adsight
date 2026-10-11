@@ -1,8 +1,9 @@
-"""The LLM judge: a second layer on root-cause scoring.
+"""The LLM judge: it decides root-cause questions.
 
-The rule layer checks that the explanation mentions the right things; the judge checks
-that it names the same cause as the reference and invents none. A root-cause question
-passes only when both layers agree.
+The judge checks that an explanation names the same cause as the reference and invents
+none; with a judge on, its verdict is the root-cause pass. The regex rule is still computed
+and reported as its own "rule check". `bench judge-check` measures the judge against the
+hand labels in benchmark/judge/labels.jsonl.
 """
 
 from typing import Any
@@ -17,11 +18,25 @@ from adsight.llm.schema import portable_schema
 from adsight.llm.types import LLMRequest, Msg
 
 JUDGE_SYSTEM = (
-    "You grade an analytics agent's explanation against the known true cause. Write your "
-    "reasoning first. identifies_true_cause is true only if the explanation names the same "
-    "cause as the reference (the same entity and the same kind of change or problem). "
-    "invents_unsupported_cause is true if it asserts any cause that is not in the reference "
-    "and is not supported by data it quotes. Ruling a cause out is not inventing it."
+    "You grade an ads analyst's explanation of why a metric changed, against the known true "
+    "cause (the reference). Write your reasoning first, then decide two things.\n"
+    "identifies_true_cause: true when the explanation names the same cause as the reference: "
+    "the same kind of event or condition (for example a paused ad, a budget change, an "
+    "audience change, broken conversion tracking, creative fatigue, a shorter or longer "
+    "month, or ordinary week-to-week variation with no logged change) on the same entity or "
+    "one of its parents or children. A symptom is not a cause: 'conversions dropped' or 'the "
+    "conversion rate collapsed' does not identify broken tracking unless tracking or "
+    "measurement is named as the explanation. When the reference says nothing changed and "
+    "the movement is normal variation, an explanation that says no logged change explains "
+    "it and that the movement came from the conversion rate or a short-lived spike while "
+    "spend and clicks were steady does identify the cause. When the reference is about month "
+    "length, the explanation must point to the number of days or to steady spend per day.\n"
+    "invents_unsupported_cause: true only when the explanation asserts, as a cause, a "
+    "different event or condition that the reference does not contain (for example blaming "
+    "a budget change when the reference says the month was shorter). Describing how the true "
+    "cause worked (for example diminishing returns after a budget increase, or a lower "
+    "conversion rate), quoting numbers, ruling a cause out, or mentioning a possibility "
+    "alongside the true cause is not inventing."
 )
 JUDGE_USER = (
     "Question: {question}\n\n"
@@ -109,5 +124,6 @@ async def judge_root_cause(
 
 
 def combine(rule_passed: bool, judge: JudgeJSON | None) -> bool:
-    """The final pass of a root-cause question: rule AND judge (the rule alone when off)."""
-    return rule_passed if judge is None else rule_passed and judge.passed
+    """The final pass of a root-cause question: the judge's verdict (the rule when the judge
+    is off or gave no verdict)."""
+    return rule_passed if judge is None else judge.passed

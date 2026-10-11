@@ -17,7 +17,9 @@ ANSWER_FIELDS = (
     "sentences; values lists every number asked for, each with a label (plain numbers: no "
     "currency signs, ratios as fractions); entities lists ids or names, best first; "
     'direction is up, down or flat for a trend question, else "none"; assumptions lists '
-    "any assumption you made (empty if none)."
+    "any assumption you made (empty if none). entities lists only the answer itself (the "
+    "winning item first), never the entity the question is scoped to. values are unrounded, "
+    "with at least 4 significant digits."
 )
 
 B0_PLAN = (

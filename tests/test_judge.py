@@ -58,15 +58,40 @@ def test_judge_request_carries_reference_and_answer() -> None:
     assert "Why did CPL rise?" in text
 
 
-def test_two_layer_combinations() -> None:
+def test_the_judge_decides_and_the_rule_stands_in_when_off() -> None:
     def j(identifies: bool, invents: bool) -> JudgeJSON:
         return JudgeJSON.model_validate(verdict(identifies, invents))
 
     assert combine(True, j(True, False)) is True
     assert combine(True, j(True, True)) is False
     assert combine(True, j(False, False)) is False
-    assert combine(False, j(True, False)) is False
+    assert combine(False, j(True, False)) is True
     assert combine(True, None) is True and combine(False, None) is False
+
+
+def test_judge_prompt_is_the_calibrated_text() -> None:
+    assert JUDGE_SYSTEM == (
+        "You grade an ads analyst's explanation of why a metric changed, against the known "
+        "true cause (the reference). Write your reasoning first, then decide two things.\n"
+        "identifies_true_cause: true when the explanation names the same cause as the "
+        "reference: the same kind of event or condition (for example a paused ad, a budget "
+        "change, an audience change, broken conversion tracking, creative fatigue, a shorter "
+        "or longer month, or ordinary week-to-week variation with no logged change) on the "
+        "same entity or one of its parents or children. A symptom is not a cause: "
+        "'conversions dropped' or 'the conversion rate collapsed' does not identify broken "
+        "tracking unless tracking or measurement is named as the explanation. When the "
+        "reference says nothing changed and the movement is normal variation, an explanation "
+        "that says no logged change explains it and that the movement came from the "
+        "conversion rate or a short-lived spike while spend and clicks were steady does "
+        "identify the cause. When the reference is about month length, the explanation must "
+        "point to the number of days or to steady spend per day.\n"
+        "invents_unsupported_cause: true only when the explanation asserts, as a cause, a "
+        "different event or condition that the reference does not contain (for example "
+        "blaming a budget change when the reference says the month was shorter). Describing "
+        "how the true cause worked (for example diminishing returns after a budget increase, "
+        "or a lower conversion rate), quoting numbers, ruling a cause out, or mentioning a "
+        "possibility alongside the true cause is not inventing."
+    )
 
 
 def test_second_identical_judge_call_is_a_cache_hit(tmp_path: Path) -> None:
@@ -179,6 +204,28 @@ def test_runner_two_layers_and_off(card: str, con: Any, tmp_path: Path) -> None:
         "total": 2,
         "judged": 2,
         "judge_passed": 1,
+        "rule_passed": 2,
+    }
+    assert rows["RC01"]["rule_passed"] == 1 and rows["RC02"]["rule_passed"] == 1
+
+    # The judge decides: a summary the rule rejects passes when the judge accepts it.
+    summaries[rc01.question] = "Something about the account changed."
+    accepting = ScriptedProvider(lambda req: verdict(True, False))
+    judged = go(RunConfig(qdir, "b1", SPEC, run_id="judged", judge=SPEC), accepting)
+    rows = {r["question_id"]: r for r in store.results("judged")}
+    assert rows["RC01"]["passed"] == 1 and rows["RC01"]["rule_passed"] == 0
+    assert rows["RC01"]["reason"].startswith("rule check: summary does not mention")
+    assert judged.report["per_category"]["root_cause"]["rule_passed"] == 1
+    answers = {a["question_id"]: a for a in judged.report["answers"]}
+    assert answers["RC01"] == {
+        "question_id": "RC01",
+        "category": "root_cause",
+        "passed": True,
+        "rule_passed": False,
+        "judge_identifies": True,
+        "judge_invents": False,
+        "kind": "answer",
+        "values": 0,
     }
     store.close()
 

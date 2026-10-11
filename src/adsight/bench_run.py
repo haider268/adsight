@@ -83,6 +83,7 @@ ADDED_COLUMNS = {
     "judge_passed": "INTEGER",
     "judge_json": "TEXT",
     "untraceable_numbers": "INTEGER NOT NULL DEFAULT 0",
+    "rule_passed": "INTEGER",
 }
 
 log = get_logger("bench.run")
@@ -142,8 +143,9 @@ class RunStore:
             "judge_passed": None,
             "judge_json": None,
             "untraceable_numbers": 0,
+            "rule_passed": None,
         } | values
-        for flag in ("passed", "judge_passed"):
+        for flag in ("passed", "judge_passed", "rule_passed"):
             if row[flag] is not None:
                 row[flag] = int(row[flag])
         row |= {"run_id": run_id, "question_id": question_id, "status": status}
@@ -276,6 +278,33 @@ class _Recorder:
         return await self.inner.complete(req, salt)
 
 
+def rule_result(row: dict[str, Any]) -> bool:
+    """A result row's rule check (rows written before the column fall back to the rule
+    result kept in judge_json, else the final pass)."""
+    if row.get("rule_passed") is not None:
+        return bool(row["rule_passed"])
+    info = json.loads(row["judge_json"]) if row.get("judge_json") else {}
+    if "rule_passed" in info:
+        return bool(info["rule_passed"])
+    return bool(row["passed"])
+
+
+def answer_entry(row: dict[str, Any], category: str) -> dict[str, Any]:
+    """One done question in a report: enough to rebuild every table without a replay."""
+    answer = json.loads(row["answer_json"]) if row.get("answer_json") else {}
+    info = json.loads(row["judge_json"]) if row.get("judge_json") else {}
+    return {
+        "question_id": row["question_id"],
+        "category": category,
+        "passed": bool(row["passed"]),
+        "rule_passed": rule_result(row),
+        "judge_identifies": info.get("identifies_true_cause"),
+        "judge_invents": info.get("invents_unsupported_cause"),
+        "kind": answer.get("kind"),
+        "values": len(answer.get("values", [])),
+    }
+
+
 def build_report(
     cfg: RunConfig, store: RunStore, questions: list[Question], cache_hits: int, status: str
 ) -> dict[str, Any]:
@@ -293,6 +322,8 @@ def build_report(
         if r.get("judge_passed") is not None:
             entry["judged"] = entry.get("judged", 0) + 1
             entry["judge_passed"] = entry.get("judge_passed", 0) + int(r["judge_passed"])
+        if category[r["question_id"]] == "root_cause":
+            entry["rule_passed"] = entry.get("rule_passed", 0) + int(rule_result(r))
     passed = sum(int(r["passed"] or 0) for r in done)
     n = len(done)
     return {
@@ -303,6 +334,8 @@ def build_report(
         "questions_dir": str(cfg.questions_dir),
         "batch": cfg.batch,
         "judge": cfg.judge,
+        "sample": cfg.sample,
+        "salt": cfg.salt,
         "questions": len(questions),
         "counts": dict(Counter(r["status"] for r in rows)),
         "per_category": per_category,
@@ -314,6 +347,7 @@ def build_report(
         ),
         "total_cost_usd": round(sum(r["cost_usd"] for r in rows), 6),
         "cache_hits": cache_hits,
+        "answers": [answer_entry(r, category[r["question_id"]]) for r in done],
     }
 
 
@@ -412,15 +446,23 @@ async def run_benchmark(
         judge, judge_info = judged
         passed = combine(verdict.passed, judge)
         reason = verdict.reason
-        if judge is not None and not judge.passed:
-            why = "invents a cause" if judge.invents_unsupported_cause else "misses the cause"
-            reason = "; ".join(r for r in (reason, f"judge: {why}") if r)
+        if judge is not None:  # the judge decides; the rule is reported alongside
+            why = ""
+            if judge.invents_unsupported_cause:
+                why = "judge: invents a cause"
+            elif not judge.identifies_true_cause:
+                why = "judge: misses the cause"
+            rule = "" if verdict.passed else f"rule check: {verdict.reason}"
+            reason = "; ".join(r for r in (why, rule) if r)
+        elif judge_info is not None:
+            reason = "; ".join(r for r in (reason, f"judge: {judge_info['error']}") if r)
         store.save(
             run_id,
             q.id,
             "done",
             passed=passed,
             reason=reason,
+            rule_passed=verdict.passed,
             judge_passed=None if judge is None else judge.passed,
             judge_json=None
             if judge_info is None

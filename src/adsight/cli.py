@@ -676,5 +676,73 @@ def bench_status(
     console.print(table)
 
 
+@bench_app.command("table")
+def bench_table(
+    results: Annotated[
+        Path, typer.Option("--results", help="Exported results folder (<job>/report.json).")
+    ],
+    out: Annotated[Path, typer.Option("--out", help="Output folder.")] = Path("docs/results"),
+) -> None:
+    """Write results.md, accuracy_by_category.svg and cost_vs_accuracy.svg from the reports."""
+    from adsight.results_table import write_results
+
+    try:
+        written = write_results(results, out)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(1) from exc
+    for path in written:
+        console.print(f"wrote {path}")
+
+
+@bench_app.command("judge-check")
+def bench_judge_check(
+    model: Annotated[str, typer.Option("--model", help="Model spec of the judge.")],
+    batch: Annotated[
+        bool, typer.Option("--batch", help="Anthropic only: send calls as batches.")
+    ] = False,
+    labels: Annotated[
+        Path, typer.Option("--labels", help="Hand-labelled judge cases (JSONL).")
+    ] = Path("benchmark/judge/labels.jsonl"),
+) -> None:
+    """Run the judge on every labelled case and report how often it agrees with the labels."""
+    import asyncio
+    import json
+
+    from adsight.judge_check import judge_check, load_labels
+    from adsight.llm.factory import ProviderPool, parse_spec
+
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    cases = load_labels(labels)
+    pool = ProviderPool(settings, batch, script=[] if model.startswith("fixture:") else None)
+    try:
+        result = asyncio.run(judge_check(cases, pool.get(model), model))
+    finally:
+        pool.close()
+    settings.reports_dir.mkdir(parents=True, exist_ok=True)
+    path = settings.reports_dir / f"judge-check-{parse_spec(model).slug}.json"
+    path.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
+
+    n = result["cases"]
+    console.print(f"judge {model}: final verdict agrees on {result['final_agreement']}/{n}")
+    for name, agreed in result["field_agreement"].items():
+        console.print(f"  {name}: {agreed}/{n}")
+    if result["invalid"]:
+        console.print(f"  invalid judge output: {result['invalid']}")
+    table = Table(title="final verdicts (label vs judge)")
+    for column in ("", "judge pass", "judge fail"):
+        table.add_column(column, justify="left" if not column else "right")
+    c = result["confusion"]
+    table.add_row("label pass", str(c["both_pass"]), str(c["label_only_pass"]))
+    table.add_row("label fail", str(c["judge_only_pass"]), str(c["both_fail"]))
+    console.print(table)
+    for d in result["disagreements"]:
+        console.print(f"{d['id']}: label {d['label']} judge {d['judge']}\n  {d['reasoning']}")
+    console.print(f"report: {path}")
+
+
 def main() -> None:
     app()

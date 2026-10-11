@@ -1021,10 +1021,9 @@ FAT_RE = "frequen|fatigue|saturat|same (people|users|audience)|wear"
 TRK_RE = "tracking|pixel|measurement|conversion api|capi"
 NOISE_RE = (
     "variation|fluctuat|noise|random|chance|conversion rate|lead rate|"
-    "leads per (link )?click|share of clicks"
+    "leads per (link )?click|share of clicks|conversion (performance|efficiency)"
 )
 CAL_RE = "fewer days|more days|shorter|longer|days in|month length|per day|daily spend"
-ACCOUNT_WIDE_RE = "|account|all (the )?campaigns|account-wide|across the account"
 
 
 def entity_regex(key: str, label: str) -> str:
@@ -1081,6 +1080,20 @@ def comparison_text(cause: "Cause") -> str:
     )
 
 
+def change_values_regex(cause: "Cause") -> str:
+    r"""The logged old and new values, e.g. 55\.00|110\.00|\b55\b|\b110\b."""
+    values = [str(cause.evidence[k]) for k in ("old", "new") if cause.evidence.get(k)]
+    whole = []
+    for value in values:
+        try:
+            number = float(value)
+        except ValueError:
+            continue
+        if number.is_integer() and str(int(number)) != value:
+            whole.append(rf"\b{int(number)}\b")
+    return "|".join([re.escape(v) for v in values] + whole)
+
+
 def logged_required(cause: "Cause", include_changed_entity: bool = False) -> list[str]:
     ev = cause.evidence
     ctype = str(ev["change_type"])
@@ -1098,8 +1111,9 @@ def logged_required(cause: "Cause", include_changed_entity: bool = False) -> lis
         required = [scope, f"audience|targeting|{new}|{old}"]
     else:
         required = [scope, ctype.replace("_", " ")]
-    if include_changed_entity:
-        required.append(changed)
+    if include_changed_entity:  # the changed entity's name, or the values it changed between
+        values = change_values_regex(cause)
+        required.append(f"{changed}|{values}" if values else changed)
     return required
 
 
@@ -1251,11 +1265,7 @@ def root_cause_candidates(
                 question = (
                     f"{child_text} got almost no {plural} on {dates}. Was the budget the problem?"
                 )
-                required = [
-                    TRK_RE,
-                    entity_regex(cause.entity_key, cause.entity_label) + ACCOUNT_WIDE_RE,
-                ]
-                out.append(_rc_candidate(cause, "RC_TRACK_CHILD", question, required, summary))
+                out.append(_rc_candidate(cause, "RC_TRACK_CHILD", question, [TRK_RE], summary))
             decoy = _decoy_for(env, cause, decoys, decoy_window_days)
             if decoy is not None:
                 decoy_text = env.entity(decoy.level, decoy.key, decoy.label)
