@@ -127,7 +127,7 @@ def build_graph(
         return END
 
     async def resynthesize(state: AgentState) -> AgentState:
-        numbers = ", ".join(f"{n:g}" for n in state["untraceable"])
+        numbers = ", ".join(repr(float(n)) for n in state["untraceable"])
         previous = (
             _synthesis_prompt(state) + "\n\nYour previous answer:\n" + json.dumps(state["draft"])
         )

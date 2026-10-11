@@ -75,7 +75,7 @@ def _entities(model: SemanticModel, con: duckdb.DuckDBPyConnection) -> dict[str,
         rows = query(
             con,
             f"SELECT DISTINCT CAST({_q(lv.key)} AS VARCHAR), CAST({shown} AS VARCHAR) "
-            f"FROM {_q(lv.table)} WHERE {_q(lv.key)} IS NOT NULL",
+            f"FROM {_q(lv.table)} WHERE {_q(lv.key)} IS NOT NULL ORDER BY 1",
         )
         for key, label in rows:
             entity = Entity(lv.name, str(key), str(label))
@@ -213,13 +213,14 @@ def _fmt(value: Any) -> str:
     if value is None:
         return "n/a"
     number = float(value)
-    return f"{number:.0f}" if number.is_integer() else f"{number:.2f}"
+    return str(int(number)) if number.is_integer() else repr(round(number, 2))
 
 
 def _pct(before: Any, after: Any) -> str:
     if before is None or after is None or float(before) == 0:
         return "n/a"
-    return f"{(float(after) - float(before)) / float(before) * 100:+.1f}%"
+    change = round((float(after) - float(before)) / float(before) * 100, 1)
+    return f"{'+' if change >= 0 else ''}{change!r}%"
 
 
 def _series(
@@ -324,9 +325,12 @@ def _diagnose(
         weekly = _series(model, con, scope, weeks_from, end, ("frequency", "ctr"), "week")
         lines.append(f"{scope.level} {scope.key} weekly from {weeks_from} to {end}:")
         lines.append(
-            "frequency: " + " ".join(f"{float(r[1]):.2f}" for r in weekly if r[1] is not None)
+            "frequency: "
+            + " ".join(repr(round(float(r[1]), 2)) for r in weekly if r[1] is not None)
         )
-        lines.append("ctr: " + " ".join(f"{float(r[2]):.4f}" for r in weekly if r[2] is not None))
+        lines.append(
+            "ctr: " + " ".join(repr(round(float(r[2]), 4)) for r in weekly if r[2] is not None)
+        )
 
     if len(lines) > MAX_LINES:
         lines = [*lines[: MAX_LINES - 1], "(truncated)"]

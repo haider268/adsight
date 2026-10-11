@@ -117,13 +117,22 @@ async def call_llm(rt: Runtime, schema: type[M], user_text: str, max_tokens: int
     raise InvalidTwice("invalid_output")
 
 
+def render_value(value: Any) -> str:
+    """One fixed rendering for prompts: repr for floats, NULL for None, str otherwise."""
+    if value is None:
+        return "NULL"
+    if isinstance(value, float):
+        return repr(value)
+    return str(value)
+
+
 def format_result(result: SqlResult, max_rows: int) -> str:
     """A query result as the model sees it: columns, the first rows, the row count."""
     if result.error is not None:
         return f"Error: {result.error}"
     shown = result.rows[:max_rows]
     lines = ["Columns: " + " | ".join(result.columns)]
-    lines += [" | ".join("NULL" if v is None else str(v) for v in row) for row in shown]
+    lines += [" | ".join(render_value(v) for v in row) for row in shown]
     more = " or more (truncated)" if result.truncated else ""
     lines.append(f"Rows: {result.row_count}{more}; showing {len(shown)}.")
     return "\n".join(lines)

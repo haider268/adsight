@@ -81,6 +81,22 @@ def _from_position_function(node: exp.Expression) -> str | None:
 
 def validate_sql(sql: str, allowed_tables: set[str]) -> str:
     """Return the normalised SQL, or raise UnsafeSQL with a specific reason."""
+    return _validated(sql, allowed_tables).sql(dialect="duckdb")
+
+
+def has_top_level_order(root: exp.Expression) -> bool:
+    """Whether the outermost query (after any CTEs) has an ORDER BY."""
+    while isinstance(root, exp.Subquery):
+        root = root.this
+    return bool(root.args.get("order"))
+
+
+def row_sort_key(row: tuple[Any, ...]) -> tuple[tuple[bool, str, str], ...]:
+    """A total, run-independent order for rows of any types."""
+    return tuple((v is None, type(v).__name__, str(v)) for v in row)
+
+
+def _validated(sql: str, allowed_tables: set[str]) -> exp.Expression:
     try:
         parsed = sqlglot.parse(sql, dialect="duckdb")
     except SqlglotError as exc:
@@ -118,7 +134,7 @@ def validate_sql(sql: str, allowed_tables: set[str]) -> str:
             raise UnsafeSQL(f"qualified table {table.sql(dialect='duckdb')} is not allowed")
         if name not in allowed and name not in ctes:
             raise UnsafeSQL(f"unknown table: {table.name}")
-    return root.sql(dialect="duckdb")
+    return root
 
 
 @dataclass
@@ -128,6 +144,7 @@ class SqlResult:
     row_count: int = 0  # rows returned, at most max_rows
     truncated: bool = False  # the query had more rows than max_rows
     error: str | None = None
+    sorted_by_adsight: bool = False  # no ORDER BY in the SQL: rows sorted for determinism
 
 
 def run_sql(
@@ -144,9 +161,11 @@ def run_sql(
     (sync graph nodes run in a thread pool) and a shared connection hands one query's
     result to another."""
     try:
-        safe = validate_sql(sql, allowed_tables)
+        root = _validated(sql, allowed_tables)
     except UnsafeSQL as exc:
         return SqlResult(error=f"unsafe SQL: {exc.reason}")
+    safe = root.sql(dialect="duckdb")
+    sort_rows = not has_top_level_order(root)
     timed_out = threading.Event()
     cur = con.cursor()
 
@@ -160,7 +179,9 @@ def run_sql(
     try:
         cur.execute(safe)
         columns = [d[0] for d in cur.description or []]
-        fetched = cur.fetchmany(max_rows + 1)
+        # Without an ORDER BY the database order is arbitrary, and the rows go into the
+        # next prompt: fetch them all and sort them so replays see the same text.
+        fetched = cur.fetchall() if sort_rows else cur.fetchmany(max_rows + 1)
     except duckdb.Error as exc:
         if timed_out.is_set():
             return SqlResult(error="timeout")
@@ -170,9 +191,16 @@ def run_sql(
         cur.close()
     if timed_out.is_set():
         return SqlResult(error="timeout")
-    rows = [tuple(r) for r in fetched[:max_rows]]
+    all_rows = [tuple(r) for r in fetched]
+    if sort_rows:
+        all_rows.sort(key=row_sort_key)
+    rows = all_rows[:max_rows]
     return SqlResult(
-        columns=columns, rows=rows, row_count=len(rows), truncated=len(fetched) > max_rows
+        columns=columns,
+        rows=rows,
+        row_count=len(rows),
+        truncated=len(all_rows) > max_rows,
+        sorted_by_adsight=sort_rows,
     )
 
 
@@ -191,4 +219,8 @@ def query(
 
 def open_agent_connection(db_path: Path) -> duckdb.DuckDBPyConnection:
     """A read-only connection with no file, network or extension access."""
-    return duckdb.connect(str(db_path), read_only=True, config={"enable_external_access": False})
+    config: dict[str, str | bool | int | float | list[str]] = {
+        "enable_external_access": False,
+        "threads": 1,  # deterministic execution and float summation order
+    }
+    return duckdb.connect(str(db_path), read_only=True, config=config)

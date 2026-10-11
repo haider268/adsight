@@ -62,7 +62,7 @@ def judge_request(
     model_spec: str, question: str, answer: AgentAnswer, reference: str
 ) -> LLMRequest:
     spec = parse_spec(model_spec)
-    values = "; ".join(f"{v.label} = {v.value:g}" for v in answer.values)
+    values = "; ".join(f"{v.label} = {float(v.value)!r}" for v in answer.values)
     text = JUDGE_USER.format(
         question=question,
         reference=reference,
