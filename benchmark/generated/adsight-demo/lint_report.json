@@ -264,7 +264,7 @@
     ]
   },
   "root_cause": {
-    "approved": 5,
+    "approved": 7,
     "by_angle": {
       "RC_CALENDAR": 3,
       "RC_DECOY": 2,
@@ -291,7 +291,7 @@
       "noise": 10,
       "tracking": 1
     },
-    "pending_review": 2,
+    "pending_review": 0,
     "rejected": 1
   },
   "shortfalls": [],

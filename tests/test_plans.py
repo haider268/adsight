@@ -104,7 +104,7 @@ def test_committed_plans(tmp_path: Path) -> None:
     assert all(j.batch and j.model == HAIKU and j.judge == HAIKU for j in demo.jobs)
     sizes = {j.id: len(load_run_questions(j.config(settings))) for j in demo.jobs}
     # 97: RC11 and RC12 went back to pending review when their wording changed
-    assert sizes["demo-b0"] == 97 and sizes["gold-b4"] == 100 and sizes["var-b4-1"] == 20
+    assert sizes["demo-b0"] == 99 and sizes["gold-b4"] == 100 and sizes["var-b4-1"] == 20
     by_id = {j.id: j for j in demo.jobs}
     assert (by_id["var-b4-1"].salt, by_id["var-b4-2"].salt) == ("rep1", "rep2")
     same = [
@@ -449,7 +449,7 @@ def test_cli_export(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.exit_code == 0, result.output
     assert (tmp_path / "res" / "fx" / "cassette.jsonl.gz").is_file()
     report = json.loads((tmp_path / "res" / "fx" / "report.json").read_text())
-    assert report["status"] == "not started" and report["questions"] == 97
+    assert report["status"] == "not started" and report["questions"] == 99
 
 
 # --- the scheduled workflow ------------------------------------------------------------------

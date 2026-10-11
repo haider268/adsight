@@ -18,11 +18,11 @@ ONE_WEEK = re.compile(
 )
 
 # The human-reviewed questions, as recorded in M3. Their text must never change, except
-# RC11 and RC12, which gained "If not, what was?" and so went back to pending review.
+# RC11 and RC12, which gained "If not, what was?" and were re-approved on 2026-10-11.
 REVIEWED = {
     "RC10": "approved",
-    "RC11": "pending",
-    "RC12": "pending",
+    "RC11": "approved",
+    "RC12": "approved",
     "RC13": "approved",
     "RC16": "approved",
     "RC17": "rejected",
